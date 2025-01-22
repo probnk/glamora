@@ -1,0 +1,211 @@
+import 'dart:io';
+import 'package:appwrite/appwrite.dart';
+import 'package:path/path.dart' as path;
+import 'package:flutter/material.dart';
+import 'package:glamora/Reuse%20Widgets/userDetailsTexfield.dart';
+import 'package:glamora/constants/colors.dart';
+import 'package:glamora/constants/fonts.dart';
+import 'package:glamora/providers/DarkModeProvider.dart';
+import 'package:glamora/providers/ReviewProvider.dart';
+import 'package:iconly/iconly.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../AppWrite Services/AppWriteStorageService.dart';
+
+class Review extends StatefulWidget {
+  final String title;
+
+  Review({super.key, required this.title});
+
+  @override
+  State<Review> createState() => _ReviewState();
+}
+
+class _ReviewState extends State<Review> {
+  final _commentController = TextEditingController();
+  List<String> imagePath = [];
+
+  Future<XFile> pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final PickedFile = await picker.pickImage(source: source);
+
+    return PickedFile!;
+  }
+
+  Future<void> uploadImage(XFile pickedFile) async {
+    try {
+      final appwriteService = AppwriteService();
+      final file = File(pickedFile.path);
+      final fileName = path.basename(pickedFile.path);
+      String fileId = ID.unique();
+
+      // Upload file to Appwrite Storage
+      final response = await appwriteService.storage.createFile(
+        bucketId: '67713305000b8a8f3796',
+        fileId: fileId,
+        file: InputFile.fromPath(path: file.path),
+      );
+
+      // Assuming response contains the file ID and other details
+      print("File uploaded successfully: ${response.name}");
+
+      // Optionally, you can retrieve the file's public URL
+      String downloadUrl = "https://cloud.appwrite.io/v1/storage/buckets/67713305000b8a8f3796/files/$fileId/view?project=677132610020fa2644ac";
+      print("Image URL: $downloadUrl");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Review submitted successfully!")));
+    } catch (e) {
+      print("Error during file upload: $e");
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  Future<void> _pickImage() async {
+    // Pick an image from gallery
+    final pickedFile = await pickImage(ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        imagePath.add(pickedFile.path.toString()); // Store the selected image path
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Review submitted successfully!")));
+
+      // Upload the image to Appwrite storage
+      await uploadImage(pickedFile);
+    }
+  }
+
+
+  // UI components for review section
+  Widget _reviewBody() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: ListView(
+        children: [
+          mediumFont(
+              text: "Rate Us",
+              color: lightGrayBlack,
+              weight: FontWeight.w600,
+              align: TextAlign.start),
+          _giveRatingRow(),
+          SizedBox(height: 20),
+          _imagePreview(),
+          SizedBox(height: 20),
+          UserDetailsTextField(
+              label: "Write Your Comment",
+              controller: _commentController,
+              hintText: "Comment",
+              inputType: "text",
+              onChange: (value) {},
+              validator: _validateField,
+              isDarkMode: context.read<DarkModeProvider>().isDarkMode),
+        ],
+      ),
+    );
+  }
+
+  // Rating row for user to give stars
+  Widget _giveRatingRow() {
+    return Consumer<ReviewProvider>(
+      builder: (context, value, child) {
+        return Container(
+          height: 40,
+          child: ListView.builder(
+              shrinkWrap: true,
+              scrollDirection: Axis.horizontal,
+              itemCount: 5,
+              itemBuilder: (context, index) {
+                return IconButton(
+                    onPressed: () {
+                      value.setStarRating(index);
+                    },
+                    icon: Icon(
+                      value.selectedStarRating >= index
+                          ? IconlyBold.star
+                          : IconlyLight.star,
+                      color: Colors.yellow.shade800,
+                      size: 30,
+                    ));
+              }),
+        );
+      },
+    );
+  }
+
+  Widget _imagePreview() {
+    return Container(
+      height: 100, // Set a fixed height for the image preview container
+      child: Row(
+        children: [
+          // Display images in a horizontally scrollable list
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal, // Horizontal scroll
+              itemCount: imagePath.length, // Number of images
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0), // Spacing between images
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: Image.file(
+                      File(imagePath[index]),
+                      width: 100, // Image width
+                      height: 100, // Image height
+                      fit: BoxFit.cover, // Ensure the image covers the given space
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(width: 10), // Add some space between the images and the add button
+          InkWell(
+            onTap: _pickImage, // Trigger the image picking when tapped
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: lightGrayBlack, width: 2),
+              ),
+              child: Center(
+                child: Icon(
+                  IconlyBold.plus, // Add icon
+                  color: lightGrayBlack,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  // Validate the comment field
+  String? _validateField(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a comment';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          backgroundColor: white,
+          title: headingFont(
+              text: "Write Review",
+              color: lightGrayBlack,
+              weight: FontWeight.bold),
+        ),
+        backgroundColor: white,
+        body: _reviewBody());
+  }
+}
