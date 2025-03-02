@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:appwrite/appwrite.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/userDetailsTexfield.dart';
@@ -24,61 +26,86 @@ class Review extends StatefulWidget {
 
 class _ReviewState extends State<Review> {
   final _commentController = TextEditingController();
-  List<String> imagePath = [];
+  // List<String> imagePath = [];
+  //
+  // Future<XFile> pickImage(ImageSource source) async {
+  //   final picker = ImagePicker();
+  //   final PickedFile = await picker.pickImage(source: source);
+  //
+  //   return PickedFile!;
+  // }
+  //
+  // Future<void> uploadImage(XFile pickedFile) async {
+  //   try {
+  //     final appwriteService = AppwriteService();
+  //     final file = File(pickedFile.path);
+  //     final fileName = path.basename(pickedFile.path);
+  //     String fileId = ID.unique();
+  //
+  //     // Upload file to Appwrite Storage
+  //     final response = await appwriteService.storage.createFile(
+  //       bucketId: '67713305000b8a8f3796',
+  //       fileId: fileId,
+  //       file: InputFile.fromPath(path: file.path),
+  //     );
+  //
+  //     // Assuming response contains the file ID and other details
+  //     print("File uploaded successfully: ${response.name}");
+  //
+  //     // Optionally, you can retrieve the file's public URL
+  //     String downloadUrl = "https://cloud.appwrite.io/v1/storage/buckets/67713305000b8a8f3796/files/$fileId/view?project=677132610020fa2644ac";
+  //     print("Image URL: $downloadUrl");
+  //
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text("Review submitted successfully!")));
+  //   } catch (e) {
+  //     print("Error during file upload: $e");
+  //     ScaffoldMessenger.of(context)
+  //         .showSnackBar(SnackBar(content: Text("Error: $e")));
+  //   }
+  // }
+  //
+  // Future<void> _pickImage() async {
+  //   // Pick an image from gallery
+  //   final pickedFile = await pickImage(ImageSource.gallery);
+  //
+  //   if (pickedFile != null) {
+  //     setState(() {
+  //       imagePath.add(pickedFile.path.toString()); // Store the selected image path
+  //     });
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text("Review submitted successfully!")));
+  //
+  //     // Upload the image to Appwrite storage
+  //     await uploadImage(pickedFile);
+  //   }
+  // }
 
-  Future<XFile> pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final PickedFile = await picker.pickImage(source: source);
-
-    return PickedFile!;
-  }
-
-  Future<void> uploadImage(XFile pickedFile) async {
-    try {
-      final appwriteService = AppwriteService();
-      final file = File(pickedFile.path);
-      final fileName = path.basename(pickedFile.path);
-      String fileId = ID.unique();
-
-      // Upload file to Appwrite Storage
-      final response = await appwriteService.storage.createFile(
-        bucketId: '67713305000b8a8f3796',
-        fileId: fileId,
-        file: InputFile.fromPath(path: file.path),
-      );
-
-      // Assuming response contains the file ID and other details
-      print("File uploaded successfully: ${response.name}");
-
-      // Optionally, you can retrieve the file's public URL
-      String downloadUrl = "https://cloud.appwrite.io/v1/storage/buckets/67713305000b8a8f3796/files/$fileId/view?project=677132610020fa2644ac";
-      print("Image URL: $downloadUrl");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Review submitted successfully!")));
-    } catch (e) {
-      print("Error during file upload: $e");
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-  }
+  final uploadProductPhoto = FirebaseFirestore.instance.collection("Products");
 
   Future<void> _pickImage() async {
-    // Pick an image from gallery
-    final pickedFile = await pickImage(ImageSource.gallery);
+    try {
+      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final productProvider = context.read<ReviewProvider>();
+      if (pickedFile == null) return;
 
-    if (pickedFile != null) {
-      setState(() {
-        imagePath.add(pickedFile.path.toString()); // Store the selected image path
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Review submitted successfully!")));
+      productProvider.setImageFile(File(pickedFile.path));
 
-      // Upload the image to Appwrite storage
-      await uploadImage(pickedFile);
+      final fileName = path.basename(productProvider.imageFile!.path);
+      final storageRef = FirebaseStorage.instance.ref().child('${widget.title} Reviews/$fileName');
+
+      await storageRef.putFile(productProvider.imageFile!);
+      final url = await storageRef.getDownloadURL();
+      productProvider.setProductPhoto(url);
+      productProvider.toggleLoading(false);
+    } catch (e) {
+      context.read<ReviewProvider>().toggleLoading(false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally{
+      context.read<ReviewProvider>().toggleLoading(false);
     }
   }
-
 
   // UI components for review section
   Widget _reviewBody() {
@@ -142,26 +169,29 @@ class _ReviewState extends State<Review> {
       child: Row(
         children: [
           // Display images in a horizontally scrollable list
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal, // Horizontal scroll
-              itemCount: imagePath.length, // Number of images
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0), // Spacing between images
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: Image.file(
-                      File(imagePath[index]),
-                      width: 100, // Image width
-                      height: 100, // Image height
-                      fit: BoxFit.cover, // Ensure the image covers the given space
+          Consumer<ReviewProvider>(
+              builder: (context,value,child){
+            return Expanded(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal, // Horizontal scroll
+                itemCount: value.productPhotoUrls.length, // Number of images
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0), // Spacing between images
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Image.network(
+                        value.productPhotoUrls[index],
+                        width: 100, // Image width
+                        height: 100, // Image height
+                        fit: BoxFit.cover, // Ensure the image covers the given space
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
+                  );
+                },
+              ),
+            );
+          }),
           SizedBox(width: 10), // Add some space between the images and the add button
           InkWell(
             onTap: _pickImage, // Trigger the image picking when tapped

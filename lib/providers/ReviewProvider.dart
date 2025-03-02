@@ -14,14 +14,21 @@ class ReviewProvider with ChangeNotifier {
   File? _imageFile;
   File? get imageFile => _imageFile;
 
-  // Set the picked image file
-  void setImageFile(File image) {
+  int _selectedImageUrl = 0;
+  int get selectedImageUrl => _selectedImageUrl;
+
+
+  void setImageFile(File image){
     _imageFile = image;
     notifyListeners();
   }
 
-  // Set the product photo URL (after uploading to Firebase)
-  void setProductPhoto(String url) {
+  void selectedImage(int url) {
+    _selectedImageUrl = url;
+    notifyListeners();
+  }
+
+  void setProductPhoto( String url) {
     _productPhotoUrls.add(url);
     notifyListeners();
   }

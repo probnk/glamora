@@ -31,7 +31,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
+              'you can reconfigure this by running the FlutterFire CLI again.',
         );
       default:
         throw UnsupportedError(
@@ -42,7 +42,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyD1hz2r_0s9fx8pxIECMhMYZAa-0PDTUqI',
-    appId: '1:517719105350:web:981a4643d207cfb434cf47',
+    appId: '1:517719105350:web:ade4cb46f213460e34cf47',
     messagingSenderId: '517719105350',
     projectId: 'glamora-c4094',
     authDomain: 'glamora-c4094.firebaseapp.com',
@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBzwc6NrIm23Sfs424nKxWW_xx2gse--aE',
-    appId: '1:517719105350:android:eafbd2ef45ee45ff34cf47',
+    appId: '1:517719105350:android:da64b8531896223534cf47',
     messagingSenderId: '517719105350',
     projectId: 'glamora-c4094',
     databaseURL: 'https://glamora-c4094-default-rtdb.firebaseio.com',
@@ -61,31 +61,31 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAstdh4LoIWZ3IoVjN7A0mwrrAP9fVAsQU',
-    appId: '1:517719105350:ios:c484f572c5c7273034cf47',
+    appId: '1:517719105350:ios:589f4de59dd93d2f34cf47',
     messagingSenderId: '517719105350',
     projectId: 'glamora-c4094',
     databaseURL: 'https://glamora-c4094-default-rtdb.firebaseio.com',
     storageBucket: 'glamora-c4094.appspot.com',
     androidClientId: '517719105350-t1i8jdoc0h8428ta5irgjlf2hhf5gbt8.apps.googleusercontent.com',
-    iosClientId: '517719105350-4gn61hjkf4020tuk16okagcov6r1cgsj.apps.googleusercontent.com',
-    iosBundleId: 'com.example.glamora',
+    iosClientId: '517719105350-vanf1484n7vp4v24aquh3f549qhjgo8o.apps.googleusercontent.com',
+    iosBundleId: 'com.example.seller',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyAstdh4LoIWZ3IoVjN7A0mwrrAP9fVAsQU',
-    appId: '1:517719105350:ios:c484f572c5c7273034cf47',
+    appId: '1:517719105350:ios:589f4de59dd93d2f34cf47',
     messagingSenderId: '517719105350',
     projectId: 'glamora-c4094',
     databaseURL: 'https://glamora-c4094-default-rtdb.firebaseio.com',
     storageBucket: 'glamora-c4094.appspot.com',
     androidClientId: '517719105350-t1i8jdoc0h8428ta5irgjlf2hhf5gbt8.apps.googleusercontent.com',
-    iosClientId: '517719105350-4gn61hjkf4020tuk16okagcov6r1cgsj.apps.googleusercontent.com',
-    iosBundleId: 'com.example.glamora',
+    iosClientId: '517719105350-vanf1484n7vp4v24aquh3f549qhjgo8o.apps.googleusercontent.com',
+    iosBundleId: 'com.example.seller',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyD1hz2r_0s9fx8pxIECMhMYZAa-0PDTUqI',
-    appId: '1:517719105350:web:371585c437eba9fc34cf47',
+    appId: '1:517719105350:web:981a4643d207cfb434cf47',
     messagingSenderId: '517719105350',
     projectId: 'glamora-c4094',
     authDomain: 'glamora-c4094.firebaseapp.com',

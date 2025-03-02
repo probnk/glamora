@@ -40,10 +40,10 @@
               "client_type": 3
             },
             {
-              "client_id": "517719105350-vanf1484n7vp4v24aquh3f549qhjgo8o.apps.googleusercontent.com",
+              "client_id": "517719105350-4gn61hjkf4020tuk16okagcov6r1cgsj.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.seller"
+                "bundle_id": "com.example.glamora"
               }
             }
           ]
@@ -58,6 +58,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "517719105350-h24hgrfjn9806ts7jg409lcpvv92k4qp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.seller",
+            "certificate_hash": "98a7c9c2140840c238854748acabfcc6314cf088"
+          }
+        },
         {
           "client_id": "517719105350-i4geej5r4ktqh14et5b4t9jt1vlg7tf9.apps.googleusercontent.com",
           "client_type": 3
@@ -76,10 +84,10 @@
               "client_type": 3
             },
             {
-              "client_id": "517719105350-vanf1484n7vp4v24aquh3f549qhjgo8o.apps.googleusercontent.com",
+              "client_id": "517719105350-4gn61hjkf4020tuk16okagcov6r1cgsj.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.seller"
+                "bundle_id": "com.example.glamora"
               }
             }
           ]
