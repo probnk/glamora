@@ -7,6 +7,9 @@ import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
 import 'package:glamora/Services/notificationService.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
+import 'package:glamora/models/ColorVariantModel.dart';
+import 'package:glamora/models/SizesVariants.dart';
+import 'package:glamora/models/productModel.dart';
 import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
@@ -25,30 +28,6 @@ class OrderDetails extends StatefulWidget {
 }
 
 class _OrderDetailsState extends State<OrderDetails> {
-  void getPastSevenDaysRecords() {
-    // Get the current date
-    DateTime now = DateTime.now();
-
-    // List to hold the past 7 days' dates
-    List<String> pastSevenDays = [];
-
-    // Loop to get the last 7 days (including today)
-    for (int i = 0; i < 7; i++) {
-      // Subtract days from the current date
-      DateTime date = now.subtract(Duration(days: i));
-
-      // Format the date (e.g., 17 March 2024)
-      String formattedDate = DateFormat('d MMMM yyyy').format(date);
-
-      // Add the formatted date to the list
-      pastSevenDays.add(formattedDate);
-    }
-
-    // Output the past 7 days' dates (or use them to filter your records)
-    for (String date in pastSevenDays) {
-      print(date); // You can use this list to filter documents
-    }
-  }
 
   Future<void> _addOrder() async {
     try {
@@ -58,7 +37,7 @@ class _OrderDetailsState extends State<OrderDetails> {
       int timestamp = DateTime.now().millisecondsSinceEpoch;
 
       DateTime now = DateTime.now();
-      String _formattedDate = DateFormat('d MM, yyyy').format(now);
+      String _formattedDate = DateFormat('d MMMM, yyyy').format(now);
       String _formattedTime = DateFormat('h:mm a').format(now);
 
       // User details map
@@ -76,17 +55,21 @@ class _OrderDetailsState extends State<OrderDetails> {
       // Create a list of HistoryProductItems from cartItems
       var copiedCartItems =
           cartItems.cartItems.map((item) => item.toMap()).toList();
-
-      // Store the order data in Firestore under Orders collection
-      await FirebaseFirestore.instance.collection("Orders").doc(orderId).set({
+      // ✅ Step 1: Add the order to Firestore
+      final docRef = await FirebaseFirestore.instance.collection("Orders").add({
+        'docId': '', // placeholder, will update
         'orderId': orderId,
         'orderDate': _formattedDate,
         'orderTime': _formattedTime,
         'userDetails': userDetailsMap,
-        'cartItems': copiedCartItems, // Ensure toMap() is being called
+        'cartItems': copiedCartItems,
         'paid': false,
         'fulfilled': false,
+        'cancelled':false
       });
+
+      // ✅ Step 2: Update the doc with its own ID
+      await docRef.update({'docId': docRef.id});
 
 // Create the HistoryModel with copied cart item
 
@@ -132,20 +115,69 @@ class _OrderDetailsState extends State<OrderDetails> {
     }
   }
 
-  Future<void> _updateItemQuantity(
-      int quantity, String title, int stock, int totalOrders) async {
+  Future<void> _updateStockBySize({
+    required String productId,
+    required String category,
+    required String gender,
+    required String size,
+    required int quantity,
+    int variantIndex = 0, // which variant to update
+  }) async {
     try {
-      await FirebaseFirestore.instance
-          .collection("Products")
-          .doc(title)
-          .update({
-        'stock': stock - quantity,
-        'totalOrders': totalOrders + quantity,
+      final docRef = FirebaseFirestore.instance
+          .collection("Cloths")
+          .doc(gender)
+          .collection(category)
+          .doc(productId);
+
+      final docSnap = await docRef.get();
+
+      if (!docSnap.exists) {
+        print("Product not found");
+        return;
+      }
+
+      // Load model
+      ClothingProductModel product = ClothingProductModel.fromSnapshot(docSnap);
+
+      // Get the correct variant
+      var selectedVariant = product.variants[variantIndex];
+
+      // Update the matching size's stock
+      List<ClothingSizesModel> updatedSizes = selectedVariant.sizes.map((s) {
+        if (s.size == size) {
+          return ClothingSizesModel(
+            size: s.size,
+            stock: s.stock - quantity,
+          );
+        }
+        return s;
+      }).toList();
+
+      // Replace sizes in selected variant
+      selectedVariant = ClothingVariantModel(
+        colors: selectedVariant.colors,
+        sizes: updatedSizes,
+      );
+
+      // Replace the variant in the list
+      product.variants[variantIndex] = selectedVariant;
+
+      // Update total orders
+      int updatedTotalOrders = product.totalOrders + quantity;
+
+      // Push to Firestore
+      await docRef.update({
+        "totalOrders": updatedTotalOrders,
+        "variants": product.variants.map((v) => v.toMap()).toList(),
       });
+
+      print("Stock updated for size $size and totalOrders updated.");
     } catch (e) {
-      print(e);
+      print("Error: $e");
     }
   }
+
 
   _orderDetailsBody({required bool isDarkMode}) {
     return ListView(
@@ -254,11 +286,12 @@ class _OrderDetailsState extends State<OrderDetails> {
       return InkWell(
         onTap: () {
           for (int i = 0; i < cartValue.cartItems.length; i++) {
-            _updateItemQuantity(
-                int.parse(cartValue.cartItems[i].pieces),
-                cartValue.cartItems[i].title,
-                cartValue.cartItems[i].stock,
-                cartValue.cartItems[i].totalOrders);
+            _updateStockBySize(
+                productId: cartValue.cartItems[0].id,
+                category: cartValue.cartItems[0].category,
+                gender: cartValue.cartItems[0].gender,
+                size: cartValue.cartItems[0].size,
+                quantity: cartValue.cartItems[0].pieces);
           }
           _addOrder();
         },

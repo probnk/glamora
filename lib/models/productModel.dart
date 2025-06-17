@@ -1,50 +1,93 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'ReviewsModel.dart';
+import 'package:glamora/models/ColorVariantModel.dart';
+import 'package:glamora/models/ReviewsModel.dart';
 
-class Serum {
-  final String title;
-  final String description;
-  final String features;
-  final String usage;
-  final int oldPrice;
-  final int newPrice;
-  final int discount;
-  final int stock;
-  final int totalOrders;
-  final List<ProductReviewsModel> reviews;
-  final List<String> photoUrl;
-  final String dimensions;
+class ClothingProductModel {
+  String id;
+  String title;
+  String description;
+  List<String> tags;
+  String type;
+  String category;
+  String gender;
+  int price; // Added price field
+  int discount;
+  List<String> images;
+  String front;
+  String back;
+  int totalOrders;
+  List<ClothingVariantModel> variants;
+  List<ProductReviewModel> reviews;
+  String createdAt;
+  String updatedAt;
 
-  Serum({
-    required this.title,
-    required this.description,
-    required this.features,
-    required this.usage,
-    required this.oldPrice,
-    required this.newPrice,
-    required this.discount,
-    required this.stock,
-    required this.totalOrders,
-    required this.reviews,
-    required this.photoUrl,
-    required this.dimensions,
+  ClothingProductModel({
+    this.id = "",
+    this.title = "",
+    this.description = "",
+    this.tags = const [],
+    this.type = "",
+    this.category = "",
+    this.gender = "",
+    this.price = 0,
+    this.discount = 0,
+    this.images = const [],
+    this.front = "",
+    this.back = "",
+    this.totalOrders = 0,
+    this.variants = const [],
+    this.reviews = const [],
+    this.createdAt = "",
+    this.updatedAt = "",
   });
 
-  factory Serum.fromSnapshot(DocumentSnapshot snapshot) {
-    Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-    return Serum(
-      title: data['title'],
-      description: data['description'],
-      features: data['features'],
-      usage: data['usage'],
-      oldPrice: data['oldPrice'] ?? 0, // Default to 0 if null
-      newPrice: data['newPrice'] ?? 0,
-      discount: data['discount'] ?? 0, // Default to 0 if null
-      stock: data['stock'] ?? 0, // Default to 0 if null
-      totalOrders: data['totalOrders'] ?? 0, // Default to 0 if null
-      reviews: List<ProductReviewsModel>.from(data['reviews']?.map((review) => ProductReviewsModel.fromMap(review)) ?? []),
-      photoUrl: List<String>.from(data['imageUrls'] ?? []),
-      dimensions: data['dimensions'],
+  factory ClothingProductModel.fromSnapshot(DocumentSnapshot snapshot) {
+    final data = snapshot.data() as Map<String, dynamic>;
+
+    return ClothingProductModel(
+      id: data['id'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      tags: List<String>.from(data['tags'] ?? []),
+      type: data['type'] ?? '',
+      category: data['category'] ?? '',
+      gender: data['gender'] ?? '',
+      price: (data['price'] as num?)?.toInt() ?? 0,
+      discount: data['discount'],
+      images: List<String>.from(data['images'] ?? []),
+      front: data['front'],
+      back: data['back'] ?? '',
+      totalOrders: data['totalOrders'],
+      variants: (data['variants'] as List<dynamic>?)
+          ?.map((v) => ClothingVariantModel.fromMap(v))
+          .toList() ?? [],
+      reviews: (data['reviews'] as List<dynamic>?)
+          ?.map((r) => ProductReviewModel.fromMap(r))
+          .toList() ?? [],
+      createdAt: data['createdAt'] ?? '',
+      updatedAt: data['updatedAt'] ?? '',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'tags': tags,
+      'type': type,
+      'category': category,
+      'gender': gender,
+      'price': price,
+      'discount':discount,
+      'images': images,
+      'front': front,
+      'back': back,
+      'totalOrders': totalOrders,
+      'variants': variants.map((v) => v.toMap()).toList(),
+      'reviews': reviews.map((r) => r.toMap()).toList(),
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
   }
 }

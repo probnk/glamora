@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:glamora/models/cartProducts.dart';
 import 'HistoryProductItems.dart';
 
 class HistoryModel {
@@ -6,7 +7,7 @@ class HistoryModel {
   final String orderDate;
   final String orderTime;
   final Map<String, dynamic> userDetails;
-  final List<HistoryProductItems> cartItems;
+  final List<CartProducts> cartItems;
   final bool paid;
   final bool fulfilled;
   late final String status;
@@ -24,9 +25,12 @@ class HistoryModel {
 
   // Factory constructor to create a HistoryModel from a Firestore DocumentSnapshot
   factory HistoryModel.fromSnapshot(DocumentSnapshot snapshot) {
-    Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;  // Get the data from snapshot
+    final data = snapshot.data() as Map<String, dynamic>;  // Get the data from snapshot
 
     print("From Snapshot: ${data}");
+    List<CartProducts> cartItems = List<Map<String, dynamic>>.from(data['cartItems'] ?? [])
+        .map((item) => CartProducts.fromMap(item))
+        .toList();
 
     // Mapping the data from Firestore to HistoryModel
     return HistoryModel(
@@ -34,10 +38,7 @@ class HistoryModel {
       orderDate: data['orderDate'] ?? '',
       orderTime: data['orderTime'] ?? '',
       userDetails: data['userDetails'] ?? {},  // User details is already a map
-      cartItems: List<HistoryProductItems>.from(
-        // Map each cart item to the HistoryProductItems model
-        (data['cartItems'] as List).map((item) => HistoryProductItems.fromMap(item)),
-      ),
+      cartItems:cartItems,
       paid: data['paid'] ?? false,
       fulfilled: data['fulfilled'] ?? false,
       status: data['status'] ?? 'unseen',

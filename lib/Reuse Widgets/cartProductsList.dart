@@ -17,7 +17,7 @@ shoppingCartBody({required bool isDarkMode}) {
         itemBuilder: (context, index) {
           return Stack(
             children: [
-              cartSerumCardDesign(
+              cartClothCardDesign(
                   cartItems: value.cartItems[index],
                   context: context,
                   isCart: true,
@@ -28,7 +28,7 @@ shoppingCartBody({required bool isDarkMode}) {
                 child: IconButton(
                     onPressed: () {
                       value.deleteCartItem(value.cartItems[index]);
-                      value.removeProductFromCart(value.cartItems[index].title);
+                      value.removeProductFromCart(value.cartItems[index].id);
                     },
                     icon: Icon(
                       IconlyLight.close_square,
@@ -41,9 +41,9 @@ shoppingCartBody({required bool isDarkMode}) {
   });
 }
 
-cartSerumCardDesign(
+cartClothCardDesign(
     {CartProducts? cartItems,
-    Serum? wishListProducts,
+    ClothingProductModel? wishListProducts,
     required BuildContext context,
     required bool isCart,
     required bool isDarkMode}) {
@@ -59,7 +59,7 @@ cartSerumCardDesign(
               height: 80,
               child: networkImagesCache(
                   url:
-                      "${isCart ? cartItems!.photoUrl[0] : wishListProducts!.photoUrl[0]}",
+                      "${isCart ? cartItems!.images[0] : wishListProducts!.images[0]}",
                   height: 80),
             ),
             Column(
@@ -69,29 +69,74 @@ cartSerumCardDesign(
                     text: isCart ? cartItems!.title : wishListProducts!.title,
                     maxWidth: 150,
                     color: isDarkMode ? white : grayBlack),
-                smallFont(text: "Face Serum", color: Colors.grey),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                smallFont(
+                    text: isCart
+                        ? cartItems!.category
+                        : wishListProducts!.category,
+                    color: Colors.grey),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    mediumFont(
-                        text:
-                            "RS ${isCart ? cartItems!.newPrice : wishListProducts!.newPrice}",
-                        color: lightGreen),
-                    SizedBox(width: 20),
-                    if (isCart)
-                      smallFont(
-                          text: "x${cartItems!.pieces}", color: Colors.grey)
+                    if (isCart
+                        ? cartItems!.discount != 0
+                        : wishListProducts!.discount != 0)
+                      Row(
+                        children: [
+                          productTitle(
+                              text:
+                                  "Rs ${isCart ? ((cartItems!.price / 100) * (100 - cartItems.discount)) : ((wishListProducts!.price / 100) * (100 - wishListProducts.discount))}",
+                              color: isDarkMode ? white : grayBlack),
+                          SizedBox(width: 5),
+                          smallFont(
+                              text:
+                                  "Rs ${isCart ? cartItems!.price : wishListProducts!.price}",
+                              color: darkRed,
+                              isDiscounted: true,
+                              weight: FontWeight.w600),
+                        ],
+                      )
                     else
                       mediumFont(
-                        text: "Rs ${wishListProducts!.oldPrice}",
-                        color: lightRed,
-                        isDiscounted: true,
-                      ),
-                    SizedBox(width: 20),
-                    if (isCart)
-                      smallFont(
-                          text: "Total RS ${cartItems!.total}",
-                          color: isDarkMode ? white : grayBlack),
+                          text:
+                              "Rs ${isCart ? cartItems!.price : wishListProducts!.price}",
+                          color: darkRed,
+                          isDiscounted: true,
+                          weight: FontWeight.w600),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isCart)
+                          Container(
+                            margin: EdgeInsets.zero,
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: cartItems!.colorHex,
+                              border: Border.all(color: Colors.grey.shade300),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        SizedBox(width: 70),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            if (isCart)
+                              smallFont(
+                                  text: "x${cartItems!.pieces}",
+                                  color: Colors.grey,
+                                  align: TextAlign.end),
+                            SizedBox(width: 10),
+                            if (isCart)
+                              smallFont(
+                                  text: "Total RS ${cartItems!.total}",
+                                  color: isDarkMode ? white : grayBlack)
+                          ],
+                        )
+                      ],
+                    )
                   ],
                 ),
               ],

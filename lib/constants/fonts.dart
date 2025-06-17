@@ -56,10 +56,14 @@ productTitle(
     Color color = grayBlack,
     FontWeight weight = FontWeight.w600,
     double maxWidth = 120,
-    bool isDiscounted = false}) {
+    bool isDiscounted = false,
+    int maxLine = 3,
+    TextOverflow textOverFlow = TextOverflow.ellipsis}) {
   return Container(
     constraints: BoxConstraints(maxWidth: maxWidth),
     child: Text(text,
+        maxLines: maxLine,
+        overflow: textOverFlow,
         style: GoogleFonts.exo2(
             color: color,
             fontSize: 16,

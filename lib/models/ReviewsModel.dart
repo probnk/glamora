@@ -1,34 +1,36 @@
-class ProductReviewsModel {
-  String name, date, profileUrl, comment;
-  List reviewImages;
+class ProductReviewModel {
+  String reviewerName;
+  String reviewDate;
+  String profilePhoto;
+  String comment;
+  List<String> reviewImages;
   int rating;
 
-  ProductReviewsModel({
-    this.name = "",
-    this.date = "",
-    this.profileUrl = "",
+  ProductReviewModel({
+    this.reviewerName = "",
+    this.reviewDate = "",
+    this.profilePhoto = "",
     this.comment = "",
     this.reviewImages = const [],
     this.rating = 0,
   });
 
-  factory ProductReviewsModel.fromMap(Map<String, dynamic> data) {
-    return ProductReviewsModel(
-      name: data['name'] ?? '',
-      date: data['date'] ?? '',
-      profileUrl: data['profileUrl'] ?? '',
+  factory ProductReviewModel.fromMap(Map<String, dynamic> data) {
+    return ProductReviewModel(
+      reviewerName: data['reviewerName'] ?? '',
+      reviewDate: data['reviewDate'] ?? '',
+      profilePhoto: data['profilePhoto'] ?? '',
       comment: data['comment'] ?? '',
-      reviewImages: List.from(data['reviewImages'] ?? []),
+      reviewImages: List<String>.from(data['reviewImages'] ?? []),
       rating: data['rating'] ?? 0,
     );
   }
 
-  // Method to convert the object to a map
   Map<String, dynamic> toMap() {
     return {
-      'name': name,
-      'date': date,
-      'profileUrl': profileUrl,
+      'reviewerName': reviewerName,
+      'reviewDate': reviewDate,
+      'profilePhoto': profilePhoto,
       'comment': comment,
       'reviewImages': reviewImages,
       'rating': rating,

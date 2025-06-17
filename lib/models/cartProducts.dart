@@ -1,70 +1,83 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:glamora/models/ReviewsModel.dart';
+import 'package:flutter/material.dart';
 import 'package:glamora/models/productModel.dart';
 
-class CartProducts extends Serum {
-  final String pieces;
+class CartProducts extends ClothingProductModel {
+  final int pieces;
   final String total;
+  final String size;
+  final Color colorHex; // ✅ Store hex string instead of Color
 
   CartProducts({
+    required String id,
     required this.pieces,
     required this.total,
     required String title,
-    required String description,
-    required String features,
-    required String usage,
-    required int oldPrice,
-    required int newPrice,
+    required int price,
     required int discount,
-    required int stock,
-    required int totalOrders,
-    required List<ProductReviewsModel> reviews,
+    required this.size,
+    required String gender,
+    required String category,
     required List<String> photoUrl,
-    required String dimensions,
+    required this.colorHex
   }) : super(
-      title: title,
-      description: description,
-      features: features,
-      usage: usage,
-      oldPrice: oldPrice,
-      newPrice: newPrice,
-      discount: discount,
-      stock: stock,
-      totalOrders: totalOrders,
-      reviews: reviews,
-      photoUrl: photoUrl,
-      dimensions: dimensions);
+    id: id,
+    title: title,
+    price: price,
+    discount: discount,
+    images: photoUrl,
+    gender: gender,
+    category: category,
+  );
 
+  /// Helper: Get usable Color from hex
   factory CartProducts.fromSnapshot(DocumentSnapshot snapshot) {
-    Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+    final data = snapshot.data() as Map<String, dynamic>;
+    Color color = Color(int.parse(data['colors'], radix: 16));
     return CartProducts(
-      pieces: data['pieces'] ?? '',
+      id: data['id'] ?? '',
+      pieces: data['pieces'] ?? 0,
       total: data['total'] ?? '',
       title: data['title'] ?? '',
-      description: data['description'] ?? '',
-      features: data['features'] ?? '',
-      usage: data['usage'] ?? '',
-      oldPrice: data['oldPrice'] ?? 0,
-      newPrice: data['newPrice'] ?? 0,
+      price: data['price'] ?? 0,
       discount: data['discount'] ?? 0,
-      stock: data['stock'] ?? 0,
-      totalOrders: data['totalOrders'] ?? 0,
-      reviews: List<ProductReviewsModel>.from(data['reviews']?.map((review) => ProductReviewsModel.fromMap(review)) ?? []),
+      size: data['size'] ?? '',
+      gender: data['gender'] ?? '',
+      category: data['category'] ?? '',
       photoUrl: List<String>.from(data['imageUrls'] ?? []),
-      dimensions: data['dimensions'] ?? '',
+      colorHex: color// 👈 converts it directly to Color, // default black
+    );
+  }
+  factory CartProducts.fromMap(Map<String, dynamic> data) {
+    Color color = Color(int.parse(data['colors'], radix: 16));
+    return CartProducts(
+      id: data['id'] ?? '',
+      pieces: data['pieces'] ?? 0,
+      total: data['total'] ?? '',
+      title: data['title'] ?? '',
+      price: data['price'] ?? 0,
+      discount: data['discount'] ?? 0,
+      size: data['size'] ?? '',
+      gender: data['gender'] ?? '',
+      category: data['category'] ?? '',
+      photoUrl: List<String>.from(data['imageUrls'] ?? []),
+      colorHex: color,
     );
   }
 
-  // Method to convert CartProducts object to a map
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'pieces': pieces,
       'total': total,
       'title': title,
-      'newPrice': newPrice,
+      'price': price,
       'discount': discount,
-      'imageUrls': photoUrl[0],
-      'reviewed':false
+      'size': size,
+      'gender': gender,
+      'category': category,
+      'imageUrls': images,
+      'colors': colorHex.value.toRadixString(16),
     };
   }
 }

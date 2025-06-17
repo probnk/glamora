@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:appwrite/appwrite.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
@@ -13,8 +14,6 @@ import 'package:iconly/iconly.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../AppWrite Services/AppWriteStorageService.dart';
-
 class Review extends StatefulWidget {
   final String title;
 
@@ -26,61 +25,6 @@ class Review extends StatefulWidget {
 
 class _ReviewState extends State<Review> {
   final _commentController = TextEditingController();
-  // List<String> imagePath = [];
-  //
-  // Future<XFile> pickImage(ImageSource source) async {
-  //   final picker = ImagePicker();
-  //   final PickedFile = await picker.pickImage(source: source);
-  //
-  //   return PickedFile!;
-  // }
-  //
-  // Future<void> uploadImage(XFile pickedFile) async {
-  //   try {
-  //     final appwriteService = AppwriteService();
-  //     final file = File(pickedFile.path);
-  //     final fileName = path.basename(pickedFile.path);
-  //     String fileId = ID.unique();
-  //
-  //     // Upload file to Appwrite Storage
-  //     final response = await appwriteService.storage.createFile(
-  //       bucketId: '67713305000b8a8f3796',
-  //       fileId: fileId,
-  //       file: InputFile.fromPath(path: file.path),
-  //     );
-  //
-  //     // Assuming response contains the file ID and other details
-  //     print("File uploaded successfully: ${response.name}");
-  //
-  //     // Optionally, you can retrieve the file's public URL
-  //     String downloadUrl = "https://cloud.appwrite.io/v1/storage/buckets/67713305000b8a8f3796/files/$fileId/view?project=677132610020fa2644ac";
-  //     print("Image URL: $downloadUrl");
-  //
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Review submitted successfully!")));
-  //   } catch (e) {
-  //     print("Error during file upload: $e");
-  //     ScaffoldMessenger.of(context)
-  //         .showSnackBar(SnackBar(content: Text("Error: $e")));
-  //   }
-  // }
-  //
-  // Future<void> _pickImage() async {
-  //   // Pick an image from gallery
-  //   final pickedFile = await pickImage(ImageSource.gallery);
-  //
-  //   if (pickedFile != null) {
-  //     setState(() {
-  //       imagePath.add(pickedFile.path.toString()); // Store the selected image path
-  //     });
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("Review submitted successfully!")));
-  //
-  //     // Upload the image to Appwrite storage
-  //     await uploadImage(pickedFile);
-  //   }
-  // }
-
   final uploadProductPhoto = FirebaseFirestore.instance.collection("Products");
 
   Future<void> _pickImage() async {
@@ -89,10 +33,33 @@ class _ReviewState extends State<Review> {
       final productProvider = context.read<ReviewProvider>();
       if (pickedFile == null) return;
 
-      productProvider.setImageFile(File(pickedFile.path));
+      File imageFile = File(pickedFile.path);
+
+      // Compress the image
+      final dir = await getTemporaryDirectory();
+      final targetPath =
+          "${dir.path}/${path.basenameWithoutExtension(imageFile.path)}_compressed.jpg";
+
+      final XFile? compressedXFile = await FlutterImageCompress.compressAndGetFile(
+        imageFile.absolute.path,
+        targetPath,
+        quality: 70,
+        format: CompressFormat.jpeg,
+      );
+
+      if (compressedXFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Image compression failed"))
+        );
+        return;
+      }
+
+      final File compressedFile = File(compressedXFile.path);
+      productProvider.setImageFile(compressedFile);
 
       final fileName = path.basename(productProvider.imageFile!.path);
-      final storageRef = FirebaseStorage.instance.ref().child('${widget.title} Reviews/$fileName');
+      final storageRef =
+      FirebaseStorage.instance.ref().child('${widget.title} Reviews/$fileName');
 
       await storageRef.putFile(productProvider.imageFile!);
       final url = await storageRef.getDownloadURL();
@@ -102,10 +69,11 @@ class _ReviewState extends State<Review> {
       context.read<ReviewProvider>().toggleLoading(false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally{
+    } finally {
       context.read<ReviewProvider>().toggleLoading(false);
     }
   }
+
 
   // UI components for review section
   Widget _reviewBody() {

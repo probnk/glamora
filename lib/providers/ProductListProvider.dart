@@ -3,29 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:glamora/models/productModel.dart';
 
 class ProductListProvider with ChangeNotifier {
-  List<Serum> _serumList = [];
-  List<Serum> get serumList => _serumList;
+  List<ClothingProductModel> _clothsList = [];
+  List<ClothingProductModel> get clothsList => _clothsList;
 
   double? _rating;
   double? get rating => _rating;
 
-  Future<void> fetchSerumList() async {
+  Future<void> fetchClothsList() async {
     QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('Products')
-        .orderBy('totalOrders', descending: true)
-        .get();
-    _serumList =
-        querySnapshot.docs.map((doc) => Serum.fromSnapshot(doc)).toList();
-    _calculateTotal();
+        .collection('Cloths').doc("Man").collection("T-Shirt").get();
+    _clothsList =
+        querySnapshot.docs.map((doc) => ClothingProductModel.fromSnapshot(doc)).toList();
+    // _calculateTotal();
     notifyListeners();
   }
   void _calculateTotal() {
     int sum = 0;
-    for(int i=0;i<_serumList.length;i++){
-     for(int j=0;j<_serumList[i].reviews.length;j++){
-       sum += _serumList[i].reviews[i].rating;
+    for(int i=0;i<_clothsList.length;i++){
+     for(int j=0;j<_clothsList[i].reviews.length;j++){
+       sum += _clothsList[i].reviews[i].rating;
      }
-     int length = _serumList.length;
+     int length = _clothsList.length;
      _rating = (sum/length);
     }
     notifyListeners();

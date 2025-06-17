@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
 import 'package:glamora/constants/colors.dart';
@@ -15,11 +16,11 @@ class MyWishlist extends StatefulWidget {
 }
 
 class _MyWishlistState extends State<MyWishlist> {
+
   @override
   void initState() {
     super.initState();
-    // Fetch wishlist items when the widget is initialized
-    Provider.of<WishListProvider>(context, listen: false).fetchSerumList();
+    Provider.of<WishListProvider>(context, listen: false).fetchClothsList();
   }
 
   _wishListAppbar({required bool isDarkMode}) {
@@ -35,7 +36,12 @@ class _MyWishlistState extends State<MyWishlist> {
   _wishListBody({required bool isDarkMode}) {
     return Consumer<WishListProvider>(builder: (context, value, child) {
       if (value.wishListProducts.isEmpty)
-        return Center(child: Image.asset("assets/images/empty item.avif"));
+        return Center(
+            child: Icon(
+              Icons.search_off_rounded,
+              color: isDarkMode ? Colors.grey.shade600 : grayBlack,
+              size: 200,
+            ));
       else
         return ListView.builder(
             itemCount: value.wishListProducts.length,
@@ -44,7 +50,7 @@ class _MyWishlistState extends State<MyWishlist> {
             itemBuilder: (context, index) {
               return Stack(
                 children: [
-                  cartSerumCardDesign(
+                  cartClothCardDesign(
                       context: context,
                       isCart: false,
                       isDarkMode: isDarkMode,
@@ -55,8 +61,9 @@ class _MyWishlistState extends State<MyWishlist> {
                     child: IconButton(
                         onPressed: () {
                           value.deleteWishListItem(
-                              value.wishListProducts[index].title);
-                          value.removeWishListItems(value.wishListProducts[index].title);
+                              value.wishListProducts[index].id);
+                          value.removeWishListItems(
+                              value.wishListProducts[index].id);
                         },
                         icon: Icon(
                           IconlyLight.close_square,
@@ -75,7 +82,7 @@ class _MyWishlistState extends State<MyWishlist> {
     return Scaffold(
       backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
       appBar: _wishListAppbar(isDarkMode: themeProvider.isDarkMode),
-      body: _wishListBody(isDarkMode: themeProvider.isDarkMode),
+      body:_wishListBody(isDarkMode: themeProvider.isDarkMode),
     );
   }
 }

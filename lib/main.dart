@@ -1,4 +1,3 @@
-import 'package:appwrite/appwrite.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +14,7 @@ import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/ReviewProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
+import 'package:glamora/providers/onBoardingProvider.dart';
 import 'package:provider/provider.dart';
 import 'screens/Splash Screen/SplashScreen.dart';
 
@@ -28,12 +28,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  final client = Client()
-      .setEndpoint('https://cloud.appwrite.io/v1')
-      .setProject('677132610020fa2644ac');
-
-  final storage = Storage(client);
-
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitDown,
     DeviceOrientation.portraitUp
@@ -59,6 +53,7 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => DarkModeProvider()),
           ChangeNotifierProvider(create: (context) => ProductListProvider()),
           ChangeNotifierProvider(create: (context) => ReviewProvider()),
+          ChangeNotifierProvider(create: (context) => GenderCategoryProvider()),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,

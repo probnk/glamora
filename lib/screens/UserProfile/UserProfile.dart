@@ -6,11 +6,19 @@ import 'package:flutter_switch/flutter_switch.dart';
 import 'package:glamora/Google%20Auth%20Services/GoogleAuthServices.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
+import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
+import 'package:glamora/providers/HistoryProvider.dart';
+import 'package:glamora/providers/NotificationDetailsProvider.dart';
+import 'package:glamora/providers/ProductDetailsProvider.dart';
+import 'package:glamora/providers/RatingProvider.dart';
+import 'package:glamora/providers/UserDetailsProvider.dart';
+import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/screens/History/History.dart';
 import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/MyCart/MyCart.dart';
 import 'package:glamora/screens/MyWishlist/MyWishlist.dart';
+import 'package:glamora/screens/Review/Review.dart';
 import 'package:glamora/screens/Track%20Order/TrackOrder.dart';
 import 'package:glamora/screens/UserProfile/UserDetails.dart';
 import 'package:line_icons/line_icon.dart';
@@ -68,7 +76,9 @@ class UserProfile extends StatelessWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors:themeProvider.isDarkMode ? [lightOrange,darkOrange] : [lightBlue, lightPurple],
+                            colors: themeProvider.isDarkMode
+                                ? [lightOrange, darkOrange]
+                                : [lightBlue, lightPurple],
                           ),
                         ),
                         child: UserAccountsDrawerHeader(
@@ -104,7 +114,10 @@ class UserProfile extends StatelessWidget {
                     screen: value['screen'],
                     themeProvider: themeProvider,
                     context: context)),
-                Divider(color: themeProvider.isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+                Divider(
+                    color: themeProvider.isDarkMode
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300),
                 Padding(
                   padding: EdgeInsets.only(left: 10),
                   child: titleFont(
@@ -131,6 +144,24 @@ class UserProfile extends StatelessWidget {
                           GoogleAuthService().signOut();
                           final user =
                               await GoogleAuthService().getCurrentUser();
+
+                          context.read<CartProvider>().cartItems.clear();
+                          context
+                              .read<HistoryProvider>()
+                              .historyModelList
+                              .clear();
+                          context
+                              .read<NotificationDetailsProvider>()
+                              .notificationDetails
+                              .clear();
+                          context.read<RatingProvider>().ratingList.clear();
+                          context
+                              .read<UserDetailsProvider>()
+                              .clearUserDetails();
+                          context
+                              .read<WishListProvider>()
+                              .wishListProducts
+                              .clear();
                           Navigator.pushReplacement(context,
                               MaterialPageRoute(builder: (context) => Login()));
                         } catch (e) {
@@ -150,8 +181,10 @@ class UserProfile extends StatelessWidget {
                               gradient: LinearGradient(
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
-                                  colors: themeProvider.isDarkMode ? [lightOrange,darkOrange] : [lightBlack, darkBlack])),
-                          child: smallFont(text: "Logout",color: white),
+                                  colors: themeProvider.isDarkMode
+                                      ? [lightOrange, darkOrange]
+                                      : [lightBlack, darkBlack])),
+                          child: smallFont(text: "Logout", color: white),
                         ),
                       )),
                 ),

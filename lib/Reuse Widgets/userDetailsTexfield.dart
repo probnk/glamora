@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
-import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 class UserDetailsTextField extends StatefulWidget {
   final String label;
@@ -65,7 +63,7 @@ class _UserDetailsTextFieldState extends State<UserDetailsTextField> {
         keyboardType: widget.inputType == "text"
             ? TextInputType.text
             :  widget.inputType == "zip" ? TextInputType.number :TextInputType.phone,
-        style: GoogleFonts.montserrat(color: grayBlack, fontSize: 14),
+        style: GoogleFonts.montserrat(color: widget.isDarkMode ? white : grayBlack, fontSize: 14),
         validator: widget.validator,
       ),
     );

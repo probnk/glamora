@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
@@ -17,11 +15,19 @@ class History extends StatefulWidget {
 }
 
 class _HistoryState extends State<History> {
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   // Fetch order history when the screen is initialized
+  //   context.read<HistoryProvider>().fetchOrderHistory();
+  // }
+
   @override
   void initState() {
     super.initState();
-    // Fetch order history when the screen is initialized
-    context.read<HistoryProvider>().fetchOrderHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<HistoryProvider>(context, listen: false).fetchOrderHistory();
+    });
   }
 
   // Build AppBar based on theme
@@ -50,18 +56,32 @@ class _HistoryState extends State<History> {
   // ListView to display order history
   Widget _historyList({required bool isDarkMode}) {
     final historyProvider = Provider.of<HistoryProvider>(context);
+
+    if (historyProvider.isLoading) {
+      return _buildLoadingIndicator();
+    }
+
     return historyProvider.historyModelList.isEmpty
-        ? _buildLoadingIndicator() // Show loading if no data
-        : _buildHistoryList(historyProvider);
+        ? _buildEmptyIcon()
+        : _buildHistoryList(historyProvider, isDarkMode);
+  }
+
+  Widget _buildEmptyIcon() {
+    return Center(
+      child: Icon(Icons.history, size: 80, color: Colors.grey),
+    );
   }
 
   // A loading indicator while fetching the data
   Widget _buildLoadingIndicator() {
-    return Center(child: CircularProgressIndicator());
+    return Center(
+        child: CircularProgressIndicator(
+      color: Colors.grey.shade300,
+    ));
   }
 
   // Display the history list
-  Widget _buildHistoryList(HistoryProvider historyProvider) {
+  Widget _buildHistoryList(HistoryProvider historyProvider, bool isDarkMode) {
     return ListView.builder(
       shrinkWrap: true,
       physics: ScrollPhysics(),
@@ -71,9 +91,9 @@ class _HistoryState extends State<History> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildOrderItem(order, index),
+            _buildOrderItem(order, index, isDarkMode),
             Divider(
-              color: Colors.grey.shade100,
+              color: isDarkMode ? grayBlack : Colors.grey.shade100,
               thickness: 5,
               height: 0,
             )
@@ -84,15 +104,20 @@ class _HistoryState extends State<History> {
   }
 
   // Build individual order list item
-  Widget _buildOrderItem(HistoryModel order, int index) {
+  Widget _buildOrderItem(HistoryModel order, int index, bool isDarkMode) {
     return Consumer<HistoryProvider>(builder: (context, value, child) {
       return InkWell(
         onTap: () {
           value.setSelectedOrderHistory(index);
         },
         child: Container(
-          color:
-              value.selectedOrderHistory == index ? Colors.grey.shade50 : white,
+          color: isDarkMode
+              ? (value.selectedOrderHistory == index
+                  ? darkGreen.withAlpha(150)
+                  : lightGrayBlack)
+              : (value.selectedOrderHistory == index
+                  ? Colors.grey.shade50
+                  : grayBlack),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,20 +127,20 @@ class _HistoryState extends State<History> {
                 children: [
                   mediumFont(
                       text: "${order.orderId}",
-                      color: grayBlack,
+                      color: isDarkMode ? white : grayBlack,
                       maxWidth: MediaQuery.of(context).size.width * .6,
                       weight: FontWeight.w600),
-                  smallFont(text: "${order.orderTime}", color: Colors.grey)
+                  smallFont(text: "${order.orderTime}", color:isDarkMode ? Colors.grey.shade300 : Colors.grey)
                 ],
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  smallFont(text: "${order.orderDate}", color: Colors.grey),
+                  smallFont(text: "${order.orderDate}", color: isDarkMode ? Colors.grey.shade300 : Colors.grey),
                   smallFont(
                       text:
                           "Total: Rs ${order.cartItems.fold(0, (total, item) => total + int.parse(item.total))}",
-                      color: grayBlack,
+                      color: isDarkMode ? white : grayBlack,
                       weight: FontWeight.w600,
                       maxWidth: MediaQuery.of(context).size.width * .5)
                 ],
@@ -127,11 +152,13 @@ class _HistoryState extends State<History> {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => OrderHistoryVoice(orderDetails: order,)));
+                            builder: (context) => OrderHistoryVoice(
+                                  orderDetails: order,
+                                )));
                   },
                   child: smallFont(
                       text: "View Detail's >",
-                      color: grayBlack,
+                      color: isDarkMode ? white : grayBlack,
                       weight: FontWeight.w600),
                 )
             ],

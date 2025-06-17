@@ -1,13 +1,17 @@
 import 'package:buttons_tabbar/buttons_tabbar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:glamora/Guest%20Local%20Storage/WishlistLocalStorage.dart';
 import 'package:glamora/Reuse%20Widgets/LimitedStock.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/productModel.dart';
+import 'package:glamora/models/wishListProducts.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/ProductListProvider.dart';
+import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/screens/Product%20Details/ProductDetails.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,10 +28,12 @@ class ProductCatagory extends StatefulWidget {
 class _ProductCatagoryState extends State<ProductCatagory>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  var currentUser;
 
   @override
   void initState() {
     super.initState();
+    currentUser = FirebaseAuth.instance.currentUser;
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -40,35 +46,41 @@ class _ProductCatagoryState extends State<ProductCatagory>
     );
   }
 
-  _categoryBody({required bool isDarkMode}) {
+  _categoryBody({required bool isDarkMode, required var currentUser}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Catagories(isDarkMode: isDarkMode),
-        Expanded(child: Items(isDarkMode: isDarkMode)),
+        Catagories(isDarkMode: isDarkMode, currentUser: currentUser),
+        Expanded(child: Items(isDarkMode: isDarkMode,currentUser:currentUser)),
       ],
     );
   }
 
-  _serumList({required bool isDarkMode}) {
+  _clothList({required bool isDarkMode}) {
     return Consumer<ProductListProvider>(builder: (context, value, child) {
       return MasonryGridView.count(
         crossAxisCount: 2,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        itemCount: value.serumList.length,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 1,
+        itemCount: value.clothsList.length,
         itemBuilder: (context, index) {
-          return _serumDesign(
-              serum: value.serumList[index],
+          return _clothDesign(
+              cloth: value.clothsList[index],
               index: index,
-              isDarkMode: isDarkMode);
+              isDarkMode: isDarkMode,
+              currentUser: currentUser);
         },
       );
     });
   }
 
-  _serumDesign(
-      {required Serum serum, required int index, required bool isDarkMode}) {
+  _clothDesign(
+      {required ClothingProductModel cloth,
+      required int index,
+      required bool isDarkMode,
+      required var currentUser}) {
+    double averageRating =
+        context.read<RatingProvider>().calculateAverageRating();
     return Stack(
       children: [
         InkWell(
@@ -77,7 +89,7 @@ class _ProductCatagoryState extends State<ProductCatagory>
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        ProductDetails(serumDetails: serum, index: index)));
+                        ProductDetails(clothDetails: cloth, index: index)));
           },
           child: Card(
             color: isDarkMode ? lightGrayBlack : white,
@@ -100,31 +112,67 @@ class _ProductCatagoryState extends State<ProductCatagory>
                           Icon(Icons.star_rounded,
                               color: Colors.yellow.shade700),
                           smallFont(
-                              text: serum.reviews.length.toString(),
+                              text: averageRating.toString(),
                               color: isDarkMode ? white : grayBlack,
                               weight: FontWeight.w600)
                         ],
                       )
                     ],
                   ),
-                 networkImagesCache(url: serum.photoUrl[0]),
+                  networkImagesCache(url: cloth.images[0]),
+                  productTitle(
+                      text: "${cloth.title}",
+                      color: isDarkMode ? white : Colors.grey.shade700,
+                      maxWidth: 80),
+                  smallFont(text: cloth.category, color: Colors.grey.shade400),
                   Row(
                     children: [
-                      productTitle(
-                          text: "Rs ${serum.newPrice}",
-                          color: isDarkMode ? white : grayBlack),
-                      SizedBox(width: 10),
-                      productTitle(
-                          text: "Rs ${serum.oldPrice}",
-                          isDiscounted: true,
-                          color: lightRed)
+                      if (cloth.discount != 0)
+                        Row(
+                          children: [
+                            productTitle(
+                                text:
+                                    "Rs ${((cloth.price / 100) * (100 - cloth.discount))}",
+                                color: isDarkMode ? white : grayBlack),
+                            SizedBox(width: 5),
+                            smallFont(
+                                text: "Rs ${cloth.price}",
+                                color: darkRed,
+                                isDiscounted: true,
+                                weight: FontWeight.w600),
+                          ],
+                        )
+                      else
+                        smallFont(
+                            text: "Rs ${cloth.price}",
+                            color: darkRed,
+                            isDiscounted: true,
+                            weight: FontWeight.w600),
                     ],
                   ),
-                  productTitle(
-                      text: "${serum.title}",
-                      color: isDarkMode ? white : Colors.grey.shade700,
-                      maxWidth: 100),
-                  smallFont(text: "Face Serum", color: Colors.grey.shade400),
+                  cloth.variants.first.colors.isNotEmpty
+                      ? SizedBox(
+                          width: MediaQuery.of(context).size.width * .3,
+                          height: 28,
+                          child: ListView.builder(
+                              itemCount: cloth.variants.first.colors.length,
+                              physics: const ScrollPhysics(),
+                              shrinkWrap: true,
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (context, index) {
+                                return Container(
+                                  margin: const EdgeInsets.only(left: 3),
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                      color: cloth.variants.first.colors[index],
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: lightGrayBlack, width: .5)),
+                                );
+                              }),
+                        )
+                      : const Text("None"),
                   limitedStock(context: context),
                   SizedBox(height: 6),
                 ],
@@ -133,34 +181,40 @@ class _ProductCatagoryState extends State<ProductCatagory>
           ),
         ),
         Positioned(
-          bottom: 70,
+          bottom: 110,
           right: 5,
           child: Consumer<WishListProvider>(
             builder: (context, value, child) {
               bool isFound = false;
-              // Check if the product is in the wishlist
+              var wishlistData = WishlistProducts(
+                  id: cloth.id,
+                  title: cloth.title,
+                  price: cloth.price,
+                  discount: cloth.discount,
+                  images: cloth.images,
+                  category: cloth.category,
+                  gender: cloth.gender,
+                  isFav: false);
               for (int i = 0; i < value.wishListProducts.length; i++) {
-                if (value.wishListProducts[i].title == serum.title) {
+                if (value.wishListProducts[i].id.contains(cloth.id)) {
                   isFound = true;
                   break;
                 }
               }
 
               return IconButton(
-                onPressed: () {
-                  if (!isFound) {
-                    // Add to wishlist
-                    value.addWishListItem(serum);
-                    value.storeSerumList(serum);
-                  } else {
-                    // Remove from wishlist
-                    value.removeWishListItems(serum.title);
-                    value.deleteWishListItem(serum.title);
-                  }
+                onPressed: () async{
+                    if (!isFound) {
+                      value.addWishListItem(wishlistData);
+                      value.storeClothsList(wishlistData);
+                    } else {
+                      value.deleteWishListItem(cloth.id);
+                      value.removeWishListItems(cloth.id);
+                    }
                 },
                 icon: Icon(
                   isFound ? IconlyBold.heart : IconlyLight.heart,
-                  color: lightRed,
+                  color: isFound ? lightRed : Colors.grey.shade400,
                 ),
               );
             },
@@ -170,7 +224,7 @@ class _ProductCatagoryState extends State<ProductCatagory>
     );
   }
 
-  Catagories({required bool isDarkMode}) {
+  Catagories({required bool isDarkMode, required var currentUser}) {
     return Padding(
       padding: const EdgeInsets.only(top: 8, left: 5, right: 5),
       child: ButtonsTabBar(
@@ -193,17 +247,17 @@ class _ProductCatagoryState extends State<ProductCatagory>
               color: isDarkMode ? white : grayBlack, fontSize: 20),
           tabs: [
             Tab(text: 'All'),
-            Tab(text: 'Serum'),
+            Tab(text: 'Man'),
           ]),
     );
   }
 
-  Items({required bool isDarkMode}) {
+  Items({required bool isDarkMode, required var currentUser}) {
     return TabBarView(
       controller: _tabController,
       children: [
-        _serumList(isDarkMode: isDarkMode),
-        _serumList(isDarkMode: isDarkMode),
+        _clothList(isDarkMode: isDarkMode),
+        _clothList(isDarkMode: isDarkMode),
       ],
     );
   }
@@ -215,7 +269,8 @@ class _ProductCatagoryState extends State<ProductCatagory>
       backgroundColor:
           themeProvider.isDarkMode ? grayBlack : Colors.grey.shade50,
       appBar: _productCategoryAppbar(isDarkMode: themeProvider.isDarkMode),
-      body: _categoryBody(isDarkMode: themeProvider.isDarkMode),
+      body: _categoryBody(
+          isDarkMode: themeProvider.isDarkMode, currentUser: currentUser),
     );
   }
 }

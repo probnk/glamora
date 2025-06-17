@@ -95,7 +95,7 @@ class _RatingState extends State<Rating> {
     );
   }
 
-  _reviewCardDesign({required ProductReviewsModel ratingModel,required bool isDarkMode}) {
+  _reviewCardDesign({required ProductReviewModel ratingModel,required bool isDarkMode}) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -113,15 +113,15 @@ class _RatingState extends State<Rating> {
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: Colors.transparent,
-                      backgroundImage: AssetImage("assets/images/${ratingModel.profileUrl}"),
+                      backgroundImage: AssetImage("assets/images/${ratingModel.profilePhoto}"),
                     ),
                     SizedBox(width: 16),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        productTitle(text: "${ratingModel.name}",color: isDarkMode ? white : grayBlack),
+                        productTitle(text: "${ratingModel.reviewerName}",color: isDarkMode ? white : grayBlack),
                         smallFont(
-                            text: "${ratingModel.date}",
+                            text: "${ratingModel.reviewDate}",
                             color: Colors.grey,
                             weight: FontWeight.w600)
                       ],

@@ -110,4 +110,13 @@ class UserDetailsProvider with ChangeNotifier {
     _userDetails.zipCode = user.zipCode;
     notifyListeners();
   }
+
+  void clearUserDetails() {
+    _userDetails.fullName = "";
+    _userDetails.phoneNumber = "";
+    _userDetails.email = "";
+    _userDetails.address = "";
+    _userDetails.zipCode = "";
+    notifyListeners();
+  }
 }
