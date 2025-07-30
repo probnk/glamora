@@ -24,7 +24,6 @@ class _SplashScreenState extends State<SplashScreen> {
       final sharedPreference = await SharedPreferences.getInstance();
       final _isGetStarted = sharedPreference.getBool('isGetStarted') ?? false;
       final _isGuestUser = sharedPreference.getBool('skip') ?? false;
-      print("Shared Preference 1: ${sharedPreference.getBool('skip')}");
       if (_isGetStarted) {
         Navigator.pushReplacement(
           context,
@@ -49,24 +48,29 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: grayBlack,
-      body: Center(
-          child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset("assets/images/glamora.png", width: 200, height: 200),
-          Text(
-            "Glamora",
-            style: GoogleFonts.whisper(color: white, fontSize: 80),
-          ),
-          Text(
-            "Buy More, Save More",
-            style: GoogleFonts.josefinSans(
-                color: Colors.grey.shade300, fontSize: 18),
-          )
-        ],
-      )),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(colors: [lightPurple,darkPurple])
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+            child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset("assets/images/glamora.png", width: 200, height: 200),
+            Text(
+              "Vision Cart",
+              style: GoogleFonts.whisper(color: white, fontSize: 60),
+            ),
+            Text(
+              "Buy More, Save More",
+              style: GoogleFonts.josefinSans(
+                  color: Colors.grey.shade300, fontSize: 18),
+            )
+          ],
+        )),
+      ),
     );
   }
 }

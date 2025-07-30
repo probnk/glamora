@@ -42,7 +42,6 @@ class MainPage extends StatelessWidget {
                   }
 
                   if ((personalizationSnapshot.hasData && personalizationSnapshot.data!.exists)) {
-                    print("Shared Preference 2: ${isGuestUser.toString()}");
                     // Personalization data exists, navigate to BottomNavBar
                     return BottomNavBar();
                   } else {

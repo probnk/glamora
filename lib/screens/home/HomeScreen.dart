@@ -1,8 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:glamora/Guest%20Local%20Storage/getCurrentUser.dart';
 import 'package:glamora/Reuse%20Widgets/ProductCard.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
@@ -15,6 +15,7 @@ import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
+import 'package:glamora/screens/Live%20Chat%20Support/MessagingScreen.dart';
 import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/UserProfile/UserProfile.dart';
 import 'package:glamora/screens/home/Notification%20Details/NotificationDetails.dart';
@@ -37,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    currentUser = getCurrentUser();
+    currentUser = FirebaseAuth.instance.currentUser;
     context.read<HomeProvider>().fetchImagesList();
     context.read<ProductListProvider>().fetchClothsList();
     context.read<WishListProvider>().fetchClothsList();
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       notificationService.getDeviceToken();
       notificationService.firebaseInit(context);
       notificationService.setupInteractMessage(context);
+      FirebaseMessaging.instance.subscribeToTopic(currentUser.uid);
     }
   }
 
@@ -91,12 +93,12 @@ class _HomeScreenState extends State<HomeScreen> {
             color: themeProvider.isDarkMode ? white : lightGrayBlack),
         actions: currentUser != null ? [_commonActionButton(
             isDarkMode: themeProvider.isDarkMode,
-            icon: IconlyLight.notification,
+            icon: IconlyBold.message,
             onPressed: () {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => NotificationDetails()));
+                      builder: (context) => MessagingScreen()));
             },)] :[_commonActionButton(
           isDarkMode: themeProvider.isDarkMode,
           icon: IconlyLight.logout,
@@ -242,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<DarkModeProvider>(context);
-
     return Scaffold(
       backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
       appBar: _homePageAppbar(currentUser: currentUser),

@@ -140,7 +140,8 @@ class _MyCartState extends State<MyCart> {
                                   user.userDetails.address == "" ||
                                   user.userDetails.zipCode == "" ||
                                   user.userDetails.phoneNumber == "") {
-                                Navigator.pushReplacement(
+                                Navigator.push
+                                  (
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => UserDetails(),

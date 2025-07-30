@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,16 @@ class NotificationService {
     }
   }
 
+  void subscribeToOrdersTopic() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // Subscribe to the 'orders' topic
+    await messaging.subscribeToTopic(FirebaseAuth.instance.currentUser!.uid).then((value) =>
+        print('\nOrders Channel Subscribe Successfully\n'));
+
+    print('Subscribed to "Orders" topic');
+  }
+
 //Fetch FCM Token
   Future<String> getDeviceToken() async {
     NotificationSettings settings = await messaging.requestPermission(
@@ -57,7 +68,7 @@ class NotificationService {
   void initLocalNotifications(
       BuildContext context, RemoteMessage message) async {
     var androidInitializationSettings =
-    const AndroidInitializationSettings('@mipmap/ic_launcher');
+    const AndroidInitializationSettings('@drawable/ic_stat_icon');
     var iosInitializationSettings = const DarwinInitializationSettings();
 
     var initializationSetting = InitializationSettings(
@@ -122,8 +133,7 @@ class NotificationService {
   // function to show visible notification when app is active
   Future<void> showNotification(RemoteMessage message) async {
     AndroidNotificationChannel channel = AndroidNotificationChannel(
-      message.notification!.android!.channelId.toString(),
-      message.notification!.android!.channelId.toString(),
+      "testingId","channel name",
       importance: Importance.max,
       showBadge: true,
       playSound: true,
@@ -138,9 +148,9 @@ class NotificationService {
         priority: Priority.high,
         playSound: true,
         ticker: 'ticker',
-        sound: channel.sound
-      //     sound: RawResourceAndroidNotificationSound('jetsons_doorbell')
-      //  icon: largeIconPath
+        // sound: channel.sound
+        sound: RawResourceAndroidNotificationSound('money'),
+       icon: "ic_stat_icon"
     );
 
     const DarwinNotificationDetails darwinNotificationDetails =

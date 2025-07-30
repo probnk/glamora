@@ -1,111 +1,80 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:glamora/models/ReviewsModel.dart';
 
 class RatingProvider with ChangeNotifier {
-  List<ProductReviewModel> _ratingList = [
-    ProductReviewModel(
-      reviewerName: 'John Doe',
-      reviewDate: '2023-03-15',
-      profilePhoto: 'person.png',
-      comment: 'This serum is amazing! My skin feels so much smoother and brighter. ✨',
-      reviewImages: [],
-      rating: 5,
-    ),
-    ProductReviewModel(
-      reviewerName: 'Jane Doe',
-      reviewDate: '2023-03-14',
-      profilePhoto: 'person.png',
-      comment: 'I love this serum! It really helps to reduce the appearance of my fine lines. 👍',
-      reviewImages: [],
-      rating: 4,
-    ),
-    ProductReviewModel(
-      reviewerName: 'Peter Pan',
-      reviewDate: '2023-03-13',
-      profilePhoto: 'person.png',
-      comment: 'This serum is a bit pricey, but it definitely delivers on its promises. 💰',
-      reviewImages: [],
-      rating: 4,
-    ),
-    ProductReviewModel(
-      reviewerName: 'Wendy Darling',
-      reviewDate: '2023-03-12',
-      profilePhoto: 'person.png',
-      reviewImages: [],
-      rating: 5,
-    ),
-    ProductReviewModel(
-      reviewerName: 'Captain Hook',
-      reviewDate: '2023-03-11',
-      profilePhoto: 'person.png',
-      comment: 'This serum is a game changer! My skin looks and feels so much better. 💯',
-      reviewImages: [],
-      rating: 5,
-    ),
-    ProductReviewModel(
-      reviewerName: 'Alice in Wonderland',
-      reviewDate: '2023-03-10',
-      profilePhoto: 'person.png',
-      comment: 'I love the way this serum makes my skin feel. It is so soft and hydrated. 🥰',
-      reviewImages: [],
-      rating: 5,
-    ),
-    ProductReviewModel(
-      reviewerName: 'The Mad Hatter',
-      reviewDate: '2023-03-09',
-      profilePhoto: 'person.png',
-      comment: 'This serum is a great value for the price. I would definitely recommend it. 👌',
-      reviewImages: [],
-      rating: 4,
-    ),
-    ProductReviewModel(
-      reviewerName: 'The Queen of Hearts',
-      reviewDate: '2023-03-08',
-      profilePhoto: 'person.png',
-      comment: 'I have been using this serum for a while now and I love it. It is so gentle on my sensitive skin. 💆‍♀️',
-      reviewImages: [],
-      rating: 4,
-    ),
-    ProductReviewModel(
-      reviewerName: 'The Cheshire Cat',
-      reviewDate: '2023-03-07',
-      profilePhoto: 'person.png',
-      comment: 'This serum is a great product. I would definitely recommend it to others. 👍',
-      reviewImages: [],
-      rating: 5,
-    ),
-    ProductReviewModel(
-      reviewerName: 'The White Rabbit',
-      reviewDate: '2023-03-06',
-      profilePhoto: 'person.png',
-      comment: 'I am so happy with this serum. It has made a huge difference in my skin. 😄',
-      reviewImages: [],
-      rating: 5,
-    ),
-  ];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  int _firstCount = 0;  // For 1-star ratings
+  int _secondCount = 0; // For 2-star ratings
+  int _thirdCount = 0;  // For 3-star ratings
+  int _fourthCount = 0; // For 4-star ratings
+  int _fifthCount = 0;  // For 5-star ratings
+
+  int get firstCount => _firstCount;
+  int get secondCount => _secondCount;
+  int get thirdCount => _thirdCount;
+  int get fourthCount => _fourthCount;
+  int get fifthCount => _fifthCount;
+
+  List<ProductReviewModel> _ratingList = [];
 
   List<ProductReviewModel> get ratingList => _ratingList;
 
-  void addNewRating(ProductReviewModel ratingModel) {
-    _ratingList.add(ratingModel);
-    _ratingList.sort((a, b) => b.reviewDate.compareTo(a.reviewDate));
+  void addReviewFromSnapshot(QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final reviewModel = ProductReviewModel.fromMap(data);
+    if (!_ratingList.any((e) =>
+    e.reviewerName == reviewModel.reviewerName &&
+        e.reviewDate == reviewModel.reviewDate &&
+        e.comment == reviewModel.comment)) {
+      _ratingList.insert(0, reviewModel);
+      notifyListeners();
+    }
+  }
+
+  void clearReviews() {
+    _ratingList.clear();
     notifyListeners();
   }
 
-  // Method to calculate average rating
   double calculateAverageRating() {
-    if (_ratingList.isEmpty) {
-      return 0.0; // Return 0 if the list is empty
-    }
+    if (_ratingList.isEmpty) return 0.0;
+    double total = _ratingList.fold(0.0, (sum, item) => sum + item.rating);
+    return total / _ratingList.length;
+  }
 
-    // Sum all the ratings
-    double totalRating = 0.0;
-    for (var review in _ratingList) {
-      totalRating += review.rating.toDouble(); // Ensure the rating is treated as a double
-    }
+  // In RatingProvider class
+  void countStarRatings(List<ProductReviewModel> reviews) {
+    // Reset all counts before calculating
+    _firstCount = 0;
+    _secondCount = 0;
+    _thirdCount = 0;
+    _fourthCount = 0;
+    _fifthCount = 0;
 
-    // Calculate the average
-    double averageRating = totalRating / _ratingList.length;
-    return averageRating;
+    for (var review in reviews) {
+      switch (review.rating) {
+        case 1:
+          _firstCount++;
+          break;
+        case 2:
+          _secondCount++;
+          break;
+        case 3:
+          _thirdCount++;
+          break;
+        case 4:
+          _fourthCount++;
+          break;
+        case 5:
+          _fifthCount++;
+          break;
+        default:
+        // Handle unexpected ratings if needed
+          break;
+      }
+    }
+    notifyListeners(); // Add this to update UI
   }
 }

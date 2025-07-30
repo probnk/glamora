@@ -28,7 +28,6 @@ class OrderDetails extends StatefulWidget {
 }
 
 class _OrderDetailsState extends State<OrderDetails> {
-
   Future<void> _addOrder() async {
     try {
       final userDetails =
@@ -51,7 +50,7 @@ class _OrderDetailsState extends State<OrderDetails> {
 
       // Create unique order number based on timestamp
       String orderId = 'ORD$timestamp';
-
+      final currentUser = FirebaseAuth.instance.currentUser!.uid;
       // Create a list of HistoryProductItems from cartItems
       var copiedCartItems =
           cartItems.cartItems.map((item) => item.toMap()).toList();
@@ -62,10 +61,11 @@ class _OrderDetailsState extends State<OrderDetails> {
         'orderDate': _formattedDate,
         'orderTime': _formattedTime,
         'userDetails': userDetailsMap,
+        'uid': currentUser,
         'cartItems': copiedCartItems,
         'paid': false,
         'fulfilled': false,
-        'cancelled':false
+        'cancelled': false
       });
 
       // ✅ Step 2: Update the doc with its own ID
@@ -100,10 +100,10 @@ class _OrderDetailsState extends State<OrderDetails> {
       }
       cartItems.cartItems.clear();
       SendNotificationService.sendNotificationUsingApi(
-          orderId: timestamp.toString(),
-          total: total.toString(),
-          body: "",
-          data: {"screen": "notification"});
+          body: "Order Id: $orderId with Total Bill ${total.toString()}",
+          title: "New Order Placed!",
+          data: {"screen": "notification"},
+          topic: 'Orders');
       // Navigate to the BottomNavBar after the order is completed
       Navigator.pushReplacement(
         context,
@@ -177,7 +177,6 @@ class _OrderDetailsState extends State<OrderDetails> {
       print("Error: $e");
     }
   }
-
 
   _orderDetailsBody({required bool isDarkMode}) {
     return ListView(

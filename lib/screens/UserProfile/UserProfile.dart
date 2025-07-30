@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -10,7 +11,6 @@ import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/HistoryProvider.dart';
 import 'package:glamora/providers/NotificationDetailsProvider.dart';
-import 'package:glamora/providers/ProductDetailsProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
@@ -162,6 +162,9 @@ class UserProfile extends StatelessWidget {
                               .read<WishListProvider>()
                               .wishListProducts
                               .clear();
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          FirebaseMessaging.instance
+                              .unsubscribeFromTopic(currentUser!.uid);
                           Navigator.pushReplacement(context,
                               MaterialPageRoute(builder: (context) => Login()));
                         } catch (e) {

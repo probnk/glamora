@@ -89,7 +89,7 @@ class _ProductCatagoryState extends State<ProductCatagory>
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        ProductDetails(clothDetails: cloth, index: index)));
+                        ProductDetails(id: cloth.id,gender: cloth.gender,category: cloth.category)));
           },
           child: Card(
             color: isDarkMode ? lightGrayBlack : white,

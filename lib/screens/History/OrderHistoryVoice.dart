@@ -39,7 +39,7 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
           SizedBox(height: 5),
           smallFont(
             text:
-                "Your order has been confirmed and will be shipping within next 2 Business days",
+            "Your order has been confirmed and will be shipping within next 2 Business days",
             color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
             align: TextAlign.start,
           ),
@@ -87,15 +87,18 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               mediumFont(
-                  text: "Total", color: isDarkMode ? white : grayBlack, weight: FontWeight.bold),
+                  text: "Total",
+                  color: isDarkMode ? white : grayBlack,
+                  weight: FontWeight.bold),
               SizedBox(width: 20),
-              smallFont(text: total, color:isDarkMode ? white : lightGrayBlack),
+              smallFont(
+                  text: total, color: isDarkMode ? white : lightGrayBlack),
             ],
           ),
           SizedBox(height: 20),
           smallFont(
               text:
-                  "We'll be sending a shipping confirmation email email when the items shipped successfully\n",
+              "We'll be sending a shipping confirmation email email when the items shipped successfully\n",
               color: Colors.grey,
               align: TextAlign.start),
           SizedBox(height: 10),
@@ -108,10 +111,9 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
     );
   }
 
-  _orderHeaderDetails(
-      {required String header,
-      required String data,
-      required bool isDarkMode}) {
+  _orderHeaderDetails({required String header,
+    required String data,
+    required bool isDarkMode}) {
     return Padding(
       padding: const EdgeInsets.all(5),
       child: Column(
@@ -173,8 +175,11 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
                                 weight: FontWeight.w600),
                             smallFont(
                                 text:
-                                    "${item.pieces} x Rs${((item.price / 100) * (100 - item.discount))}",
-                                color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                                "${item.pieces} x Rs${((item.price / 100) *
+                                    (100 - item.discount))}",
+                                color: isDarkMode
+                                    ? Colors.grey.shade400
+                                    : Colors.grey),
                             smallFont(
                                 text: "Discount: ${item.discount}%",
                                 color: isDarkMode ? white : lightGrayBlack),
@@ -186,23 +191,32 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
                                   height: 28,
                                   decoration: BoxDecoration(
                                     color: item.colorHex,
-                                    border:
-                                        Border.all(color: isDarkMode ? white :Colors.grey.shade300),
+                                    border: Border.all(
+                                        color: isDarkMode
+                                            ? white
+                                            : Colors.grey.shade300),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
                                 SizedBox(width: 10),
-                                mediumFont(text: item.size, color: isDarkMode ? white : grayBlack)
+                                mediumFont(
+                                    text: item.size,
+                                    color: isDarkMode ? white : grayBlack),
+                                SizedBox(width: MediaQuery
+                                    .of(context)
+                                    .size
+                                    .width * .2),
+                                mediumFont(
+                                    text: "Rs ${item.total}",
+                                    color: isDarkMode ? white : grayBlack,
+                                    weight: FontWeight.bold),
                               ],
                             ),
                           ],
                         ),
                       ],
                     ),
-                    smallFont(
-                        text: "Rs ${item.total}",
-                        color: isDarkMode ? white : grayBlack,
-                        weight: FontWeight.w500),
+
                   ],
                 ),
               ),
@@ -212,14 +226,21 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => Review(
-                                title: widget
-                                    .orderDetails.cartItems[index].title
-                                    .toString())));
+                            builder: (context) =>
+                                Review(
+                                    gender: widget
+                                        .orderDetails.cartItems[index].gender
+                                        .toString(),
+                                    category: widget
+                                        .orderDetails.cartItems[index].category
+                                        .toString(),
+                                    docId: widget.orderDetails.cartItems[index]
+                                        .id
+                                        .toString())));
                   },
                   style: ElevatedButton.styleFrom(
                       padding: EdgeInsets.symmetric(horizontal: 20),
-                      backgroundColor: isDarkMode ? darkGreen :Colors.blue,
+                      backgroundColor: isDarkMode ? darkGreen : Colors.blue,
                       elevation: 3,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8))),
@@ -229,10 +250,9 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
         });
   }
 
-  _orderTotalling(
-      {required String header,
-      required String body,
-      required bool isDarkMode}) {
+  _orderTotalling({required String header,
+    required String body,
+    required bool isDarkMode}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
@@ -257,9 +277,9 @@ class _OrderHistoryVoiceState extends State<OrderHistoryVoice> {
             text: "History",
             color: themeProvider.isDarkMode ? white : grayBlack),
         iconTheme:
-            IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
+        IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
         backgroundColor:
-            themeProvider.isDarkMode ? lightGrayBlack : Colors.white,
+        themeProvider.isDarkMode ? lightGrayBlack : Colors.white,
       ),
       backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
       body: _orderHistoryBody(isDarkMode: themeProvider.isDarkMode),

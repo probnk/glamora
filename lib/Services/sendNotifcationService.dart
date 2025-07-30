@@ -6,10 +6,10 @@ import 'package:http/http.dart' as http;
 
 class SendNotificationService {
   static Future<void> sendNotificationUsingApi({
-    required String? orderId,
-    required String? total,
+    required String? title,
     required String? body,
     required Map<String, dynamic>? data,
+    required String topic
   }) async {
     String serverKey = await GetServerKey().getServerKeyToken();
     String url =
@@ -24,10 +24,13 @@ class SendNotificationService {
     Map<String, dynamic> message = {
       "message":{
         "notification":{
-          "body":"Order Id: $orderId with Total Bill $total",
-          "title":"New Order Placed",
+          "body": body,
+          "title":title,
         },
-        "topic":"Orders"
+        "android": {
+          "notification": {"sound": "money", "icon": "ic_stat_icon"}
+        },
+        "topic":topic
       }
     };
 

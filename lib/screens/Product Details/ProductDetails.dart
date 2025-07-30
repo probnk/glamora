@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
+import 'package:glamora/models/ReviewsModel.dart';
 import 'package:glamora/models/cartProducts.dart';
 import 'package:glamora/models/productModel.dart';
 import 'package:glamora/models/wishListProducts.dart';
@@ -13,14 +15,20 @@ import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/screens/MyCart/MyCart.dart';
 import 'package:glamora/screens/Rating/Rating.dart';
 import 'package:iconly/iconly.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class ProductDetails extends StatefulWidget {
-  final ClothingProductModel clothDetails;
-  final int index;
+  final String id;
+  final String gender;
+  final String category;
 
-  const ProductDetails(
-      {super.key, required this.clothDetails, required this.index});
+  const ProductDetails({
+    super.key,
+    required this.id,
+    required this.gender,
+    required this.category,
+  });
 
   @override
   State<ProductDetails> createState() => _ProductDetailsState();
@@ -35,6 +43,14 @@ class _ProductDetailsState extends State<ProductDetails> {
     currentUser = FirebaseAuth.instance.currentUser;
   }
 
+  String _formatDate(DateTime date) {
+    return DateFormat('dd MMMM, yyyy').format(date);
+  }
+
+  String _formatTime(DateTime date) {
+    return DateFormat('h:mm a').format(date);
+  }
+
   _productDetailsAppbar({required bool isDarkMode}) {
     return AppBar(
       backgroundColor: isDarkMode ? lightGrayBlack : Colors.grey.shade50,
@@ -45,194 +61,242 @@ class _ProductDetailsState extends State<ProductDetails> {
     );
   }
 
-  _selectedText({required String text, required bool isDarkMode}) {
+  Widget _selectedText({required String text, required bool isDarkMode}) {
     return mediumFont(
-        text: text,
-        color: isDarkMode ? white : grayBlack,
-        weight: FontWeight.w800,
-        maxWidth: MediaQuery
-            .of(context)
-            .size
-            .width * .2);
-  }
-
-  _productDetailsBody({required bool isDarkMode}) {
-    return ListView(
-      shrinkWrap: true,
-      physics: ScrollPhysics(),
-      children: [
-        Stack(
-          alignment: Alignment.topLeft,
-          children: [
-            Consumer<ProductDetailsProvider>(
-              builder: (context, value, child) {
-                return Container(
-                  height: 300,
-                  color: isDarkMode ? grayBlack : Colors.grey.shade50,
-                  child: Center(
-                    child: PageView.builder(
-                      itemCount: widget.clothDetails.images.length,
-                      onPageChanged: (index) {
-                        value.setSelectedImage(index);
-                      },
-                      itemBuilder: (context, index) {
-                        return networkImagesCache(
-                            url: widget.clothDetails.images[index],
-                            height: MediaQuery
-                                .of(context)
-                                .size
-                                .height * .4,
-                            width: MediaQuery
-                                .of(context)
-                                .size
-                                .width);
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        _productDetailsCard(isDarkMode: isDarkMode)
-      ],
+      text: text,
+      color: isDarkMode ? white : grayBlack,
+      weight: FontWeight.w800,
+      maxWidth: MediaQuery.of(context).size.width * .2,
     );
   }
 
-  _productDetailsCard({required bool isDarkMode}) {
+  Widget _productDetailsBody({required bool isDarkMode}) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("Cloths")
+          .doc(widget.gender)
+          .collection(widget.category)
+          .doc(widget.id)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Error loading product details"));
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Center(child: Text("No data available"));
+        }
+
+        final data = snapshot.data!.data();
+        if (data is! Map<String, dynamic>) {
+          return Center(child: Text("Invalid data format"));
+        }
+
+        final productDetails = ClothingProductModel.fromMap(data);
+        return ListView(
+          shrinkWrap: true,
+          physics: const ScrollPhysics(),
+          children: [
+            Stack(
+              alignment: Alignment.topLeft,
+              children: [
+                Consumer<ProductDetailsProvider>(
+                  builder: (context, value, child) {
+                    return Container(
+                      height: 300,
+                      color: isDarkMode ? grayBlack : Colors.grey.shade50,
+                      child: Center(
+                        child: PageView.builder(
+                          itemCount: productDetails.images.length,
+                          onPageChanged: (index) {
+                            value.setSelectedImage(index);
+                          },
+                          itemBuilder: (context, index) {
+                            return networkImagesCache(
+                              url: productDetails.images[index],
+                              height: MediaQuery.of(context).size.height * .4,
+                              width: MediaQuery.of(context).size.width,
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            _productDetailsCard(
+              productDetails: productDetails,
+              isDarkMode: isDarkMode,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _productDetailsCard({
+    required ClothingProductModel productDetails,
+    required bool isDarkMode,
+  }) {
+    final hasReviews = productDetails.reviews.isNotEmpty;
+    DateTime? tempDate;
+    String date = '';
+    String time = '';
+
+    if (hasReviews) {
+      try {
+        tempDate = DateTime.parse(productDetails.reviews.first.reviewDate);
+        date = _formatDate(tempDate);
+        time = _formatTime(tempDate);
+      } catch (e) {
+        tempDate = DateTime.now();
+        date = _formatDate(tempDate);
+        time = _formatTime(tempDate);
+      }
+    }
+
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: isDarkMode ? grayBlack : white,
-          borderRadius: BorderRadius.only(
-              topRight: Radius.circular(20), topLeft: Radius.circular(20))),
+        color: isDarkMode ? grayBlack : white,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(20),
+          topLeft: Radius.circular(20),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           headingFont(
-              text: widget.clothDetails.title,
-              color: isDarkMode ? white : grayBlack,
-              align: TextAlign.start,
-              weight: FontWeight.w500),
+            text: productDetails.title,
+            color: isDarkMode ? white : grayBlack,
+            align: TextAlign.start,
+            weight: FontWeight.w500,
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   mediumFont(
-                      text: widget.clothDetails.gender,
-                      color: Colors.grey,
-                      align: TextAlign.start),
-                  SizedBox(width: 4),
+                    text: productDetails.gender,
+                    color: Colors.grey,
+                    align: TextAlign.start,
+                  ),
+                  const SizedBox(width: 4),
                   mediumFont(
-                      text: widget.clothDetails.category, color: Colors.grey)
+                    text: productDetails.category,
+                    color: Colors.grey,
+                  ),
                 ],
               ),
               Consumer<WishListProvider>(builder: (context, value, child) {
                 bool isFound = false;
                 var wishlistData = WishlistProducts(
-                    id: widget.clothDetails.id,
-                    title: widget.clothDetails.title,
-                    price: widget.clothDetails.price,
-                    discount: widget.clothDetails.discount,
-                    images: widget.clothDetails.images,
-                    category: widget.clothDetails.category,
-                    gender: widget.clothDetails.gender,
-                    isFav: false);
+                  id: productDetails.id,
+                  title: productDetails.title,
+                  price: productDetails.price,
+                  discount: productDetails.discount,
+                  images: productDetails.images,
+                  category: productDetails.category,
+                  gender: productDetails.gender,
+                  isFav: false,
+                );
+
                 for (int i = 0; i < value.wishListProducts.length; i++) {
-                  if (value.wishListProducts[i].id
-                      .contains(widget.clothDetails.id)) {
+                  if (value.wishListProducts[i].id.contains(productDetails.id)) {
                     isFound = true;
                     break;
                   }
                 }
+
                 return InkWell(
                   onTap: () {
                     if (!isFound) {
                       value.addWishListItem(wishlistData);
                       value.storeClothsList(wishlistData);
                     } else {
-                      value.deleteWishListItem(widget.clothDetails.id);
-                      value.removeWishListItems(widget.clothDetails.id);
+                      value.deleteWishListItem(productDetails.id);
+                      value.removeWishListItems(productDetails.id);
                     }
                   },
                   child: Container(
-                    padding: EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                        color:
-                        isDarkMode ? lightGrayBlack : Colors.grey.shade50,
-                        shape: BoxShape.circle),
-                    child: Icon(isFound ? IconlyBold.heart : IconlyLight.heart,
-                        color: lightRed),
+                      color: isDarkMode ? lightGrayBlack : Colors.grey.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isFound ? IconlyBold.heart : IconlyLight.heart,
+                      color: lightRed,
+                    ),
                   ),
                 );
-              })
+              }),
             ],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (widget.clothDetails.discount != 0)
+              if (productDetails.discount != 0)
                 Row(
                   children: [
                     productTitle(
-                        text:
-                        "Rs ${((widget.clothDetails.price / 100) *
-                            (100 - widget.clothDetails.discount))}",
-                        color: isDarkMode ? white : grayBlack),
-                    SizedBox(width: 5),
+                      text:
+                      "Rs ${((productDetails.price / 100) * (100 - productDetails.discount))}",
+                      color: isDarkMode ? white : grayBlack,
+                    ),
+                    const SizedBox(width: 5),
                     smallFont(
-                        text: "Rs ${widget.clothDetails.price}",
-                        color: darkRed,
-                        isDiscounted: true,
-                        weight: FontWeight.w600),
+                      text: "Rs ${productDetails.price}",
+                      color: darkRed,
+                      isDiscounted: true,
+                      weight: FontWeight.w600,
+                    ),
                   ],
                 )
               else
                 smallFont(
-                    text: "Rs ${widget.clothDetails.price}",
-                    color: darkRed,
-                    isDiscounted: true,
-                    weight: FontWeight.w600),
+                  text: "Rs ${productDetails.price}",
+                  color: darkRed,
+                  isDiscounted: true,
+                  weight: FontWeight.w600,
+                ),
               smallFont(
-                  text:
-                  "🔥📦 Stock:${widget.clothDetails.variants[0].sizes[context
-                      .watch<ProductDetailsProvider>()
-                      .selectedSize].stock}",
-                  color: widget
-                      .clothDetails
-                      .variants[0]
-                      .sizes[context
-                      .watch<ProductDetailsProvider>()
-                      .selectedSize]
-                      .stock >
-                      10
-                      ? lightGreen
-                      : darkRed,
-                  weight: FontWeight.w600)
+                text:
+                "🔥📦 Stock:${productDetails.variants[0].sizes[context.watch<ProductDetailsProvider>().selectedSize].stock}",
+                color: productDetails
+                    .variants[0]
+                    .sizes[context
+                    .watch<ProductDetailsProvider>()
+                    .selectedSize]
+                    .stock >
+                    10
+                    ? lightGreen
+                    : darkRed,
+                weight: FontWeight.w600,
+              ),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               _selectedText(text: "Colors:", isDarkMode: isDarkMode),
-              SizedBox(width: 5),
-              widget.clothDetails.variants.first.colors.isNotEmpty
+              const SizedBox(width: 5),
+              productDetails.variants.first.colors.isNotEmpty
                   ? Expanded(
-                // Use Expanded to allow it to take up available space
                 child: Consumer<ProductDetailsProvider>(
                   builder: (context, selectedColor, child) {
                     return SingleChildScrollView(
-                      // Wrap ListView.builder in SingleChildScrollView to allow horizontal scrolling
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: List.generate(
-                          widget
-                              .clothDetails.variants.first.colors.length,
+                          productDetails.variants.first.colors.length,
                               (index) {
-                            final color = widget.clothDetails.variants
-                                .first.colors[index];
+                            final color = productDetails
+                                .variants.first.colors[index];
                             final isWhiteColor = color == Colors.white;
                             final isBlackColor = color == Colors.black;
 
@@ -242,7 +306,7 @@ class _ProductDetailsState extends State<ProductDetails> {
                               },
                               child: Container(
                                 margin: index > 0
-                                    ? EdgeInsets.only(left: 5)
+                                    ? const EdgeInsets.only(left: 5)
                                     : EdgeInsets.zero,
                                 width: 28,
                                 height: 28,
@@ -294,31 +358,30 @@ class _ProductDetailsState extends State<ProductDetails> {
                   : const Text("None"),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               _selectedText(text: "Sizes:", isDarkMode: isDarkMode),
-              SizedBox(width: 5),
-              widget.clothDetails.variants.first.sizes.isNotEmpty
+              const SizedBox(width: 5),
+              productDetails.variants.first.sizes.isNotEmpty
                   ? Expanded(
-                // Use Expanded to allow it to take up available space
                 child: Consumer<ProductDetailsProvider>(
                   builder: (context, selectedSize, child) {
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: List.generate(
-                          widget.clothDetails.variants.first.sizes.length,
+                          productDetails.variants.first.sizes.length,
                               (index) {
-                            final size = widget
-                                .clothDetails.variants.first.sizes[index];
+                            final size = productDetails
+                                .variants.first.sizes[index];
                             final isSelected =
                                 selectedSize.selectedSize == index;
 
                             return Padding(
                               padding: index > 0
-                                  ? EdgeInsets.only(left: 5)
+                                  ? const EdgeInsets.only(left: 5)
                                   : EdgeInsets.zero,
                               child: ChoiceChip(
                                 label: smallFont(
@@ -333,14 +396,12 @@ class _ProductDetailsState extends State<ProductDetails> {
                                     : Colors.grey.shade100,
                                 disabledColor: Colors.grey.shade100,
                                 selected: isSelected,
-                                checkmarkColor: isDarkMode
-                                    ? lightGrayBlack
-                                    : lightGreen,
+                                checkmarkColor:
+                                isDarkMode ? lightGrayBlack : lightGreen,
                                 selectedColor:
                                 isDarkMode ? lightGreen : grayBlack,
                                 onSelected: (selected) {
-                                  selectedSize.setSelectedSize(
-                                      index); // Set the selected size
+                                  selectedSize.setSelectedSize(index);
                                 },
                               ),
                             );
@@ -354,11 +415,17 @@ class _ProductDetailsState extends State<ProductDetails> {
                   : const Text("No sizes available"),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           InkWell(
             onTap: () {
               Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => Rating()));
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Rating(
+                    reviews: productDetails.reviews,
+                  ),
+                ),
+              );
             },
             child: Column(
               children: [
@@ -367,134 +434,187 @@ class _ProductDetailsState extends State<ProductDetails> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.star_rounded,
-                            color: Colors.yellow.shade700, size: 20),
-                        Icon(Icons.star_rounded,
-                            color: Colors.yellow.shade700, size: 20),
-                        Icon(Icons.star_rounded,
-                            color: Colors.yellow.shade700, size: 20),
-                        Icon(Icons.star_rounded,
-                            color: Colors.yellow.shade700, size: 20),
-                        Icon(Icons.star_half_rounded,
-                            color: Colors.yellow.shade700, size: 20),
+                        _buildStarRating(
+                            _calculateAverageRating(productDetails.reviews)),
+                        const SizedBox(width: 8),
                         productTitle(
-                            text:
-                            "${widget.clothDetails.reviews.length
-                                .toDouble()} Rating",
-                            color: isDarkMode ? white : grayBlack)
+                          text:
+                          "${_calculateAverageRating(productDetails.reviews).toStringAsFixed(1)} (${productDetails.reviews.length} reviews)",
+                          color: isDarkMode ? white : grayBlack,
+                        ),
                       ],
                     ),
-                    smallFont(text: "See all", color: Colors.grey)
+                    smallFont(text: "See all", color: Colors.grey),
                   ],
                 ),
-                SizedBox(height: 10),
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  color: isDarkMode ? lightGrayBlack : white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.transparent,
-                                  backgroundImage:
-                                  AssetImage("assets/images/person.png"),
-                                ),
-                                SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    productTitle(
-                                        text: "Jhon Doe",
-                                        color: isDarkMode ? white : grayBlack),
-                                    smallFont(
-                                        text: "18 Aug 2024",
+                const SizedBox(height: 10),
+                if (hasReviews) ...[
+                  Card(
+                    elevation: 3,
+                    color: isDarkMode ? lightGrayBlack : white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Colors.transparent,
+                                    backgroundImage: NetworkImage(
+                                        productDetails.reviews.first.profilePhoto),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      productTitle(
+                                        text: productDetails
+                                            .reviews.first.reviewerName,
+                                        color: isDarkMode ? white : grayBlack,
+                                      ),
+                                      smallFont(
+                                        text: date,
                                         color: Colors.grey,
-                                        weight: FontWeight.w600)
-                                  ],
-                                )
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Icon(Icons.star_rounded,
-                                    color: Colors.yellow.shade700, size: 20),
-                                Icon(Icons.star_rounded,
-                                    color: Colors.yellow.shade700, size: 20),
-                                Icon(Icons.star_rounded,
-                                    color: Colors.yellow.shade700, size: 20),
-                                Icon(Icons.star_rounded,
-                                    color: Colors.yellow.shade700, size: 20),
-                                Icon(Icons.star_rounded,
-                                    color: Colors.yellow.shade700, size: 20),
-                              ],
-                            )
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        smallFont(
-                            text:
-                            "Fast Delivery! Delivered in just 2 day and packaging is good and product is awesome i am using it from past 7 day",
+                                        weight: FontWeight.w600,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  _buildStarRating(productDetails
+                                      .reviews.first.rating
+                                      .toDouble()),
+                                  smallFont(
+                                    text: time,
+                                    color: Colors.grey,
+                                    weight: FontWeight.w600,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          smallFont(
+                            text: productDetails.reviews.first.comment,
                             color: Colors.grey,
-                            align: TextAlign.start)
-                      ],
+                            align: TextAlign.start,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                )
+                ] else ...[
+                  const SizedBox(height: 16),
+                  smallFont(
+                    text: "No reviews yet",
+                    color: Colors.grey,
+                    weight: FontWeight.w600,
+                  ),
+                ],
               ],
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _productDescriptionFonts(
-              title: "Description",
-              subTitle: widget.clothDetails.description,
-              isDarkMode: isDarkMode),
-          SizedBox(height: 60),
+            title: "Description",
+            subTitle: productDetails.description,
+            isDarkMode: isDarkMode,
+          ),
+          const SizedBox(height: 60),
         ],
       ),
     );
   }
 
-  _productDescriptionFonts({required String title,
+  double _calculateAverageRating(List<ProductReviewModel> reviews) {
+    if (reviews.isEmpty) return 0.0;
+
+    double total = 0.0;
+    for (var review in reviews) {
+      total += review.rating.toDouble();
+    }
+    return total / reviews.length;
+  }
+
+  Widget _buildStarRating(double rating) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        if (index < rating.floor()) {
+          return Icon(
+            Icons.star_rounded,
+            color: Colors.yellow.shade700,
+            size: 20,
+          );
+        } else if (index == rating.floor() && rating % 1 >= 0.5) {
+          return Icon(
+            Icons.star_half_rounded,
+            color: Colors.yellow.shade700,
+            size: 20,
+          );
+        } else {
+          return Icon(
+            Icons.star_outline_rounded,
+            color: Colors.yellow.shade700,
+            size: 20,
+          );
+        }
+      }),
+    );
+  }
+
+  Widget _productDescriptionFonts({
+    required String title,
     required String subTitle,
-    required bool isDarkMode}) {
+    required bool isDarkMode,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         mediumFont(
-            text: title,
-            color: isDarkMode ? white : grayBlack,
-            weight: FontWeight.bold,
-            align: TextAlign.start),
-        smallFont(text: subTitle, color: Colors.grey, align: TextAlign.start),
-        SizedBox(height: 8),
+          text: title,
+          color: isDarkMode ? white : grayBlack,
+          weight: FontWeight.bold,
+          align: TextAlign.start,
+        ),
+        smallFont(
+          text: subTitle,
+          color: Colors.grey,
+          align: TextAlign.start,
+        ),
+        const SizedBox(height: 8),
       ],
     );
   }
 
-  _quantityCounter({required bool isDarkMode}) {
+  Widget _quantityCounter({
+    required bool isDarkMode,
+    required ClothingProductModel productDetails,
+  }) {
     return Consumer<ProductDetailsProvider>(builder: (context, value, child) {
+      final selectedSize = value.selectedSize;
+      final stock = productDetails.variants[0].sizes[selectedSize].stock;
+
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
         decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: isDarkMode ? grayBlack : white),
+          borderRadius: BorderRadius.circular(10),
+          color: isDarkMode ? grayBlack : white,
+        ),
         child: Row(
           children: [
             InkWell(
-              onTap: value.quantity == 1 ||
-                  widget.clothDetails.variants[0].sizes[value.selectedSize]
-                      .stock ==
-                      0
+              onTap: value.quantity == 1 || stock == 0
                   ? null
                   : () {
                 value.subtractValue();
@@ -504,35 +624,27 @@ class _ProductDetailsState extends State<ProductDetails> {
                 height: 45,
                 padding: EdgeInsets.all(0),
                 decoration: BoxDecoration(
-                    color: value.quantity == 1 ||
-                        widget.clothDetails.variants[0]
-                            .sizes[value.selectedSize].stock <=
-                            0
-                        ? Colors.grey.shade300
-                        : lightGrayBlack,
-                    shape: BoxShape.circle),
+                  color: value.quantity == 1 || stock <= 0
+                      ? Colors.grey.shade300
+                      : lightGrayBlack,
+                  shape: BoxShape.circle,
+                ),
                 child: headingFont(
-                    text: "-",
-                    weight: FontWeight.bold,
-                    color: value.quantity == 1 ||
-                        widget.clothDetails.variants[0]
-                            .sizes[value.selectedSize].stock <=
-                            0
-                        ? grayBlack
-                        : white),
+                  text: "-",
+                  weight: FontWeight.bold,
+                  color: value.quantity == 1 || stock <= 0 ? grayBlack : white,
+                ),
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             mediumFont(
-                text: value.quantity.toString(),
-                color: isDarkMode ? white : grayBlack,
-                weight: FontWeight.bold),
-            SizedBox(width: 10),
+              text: value.quantity.toString(),
+              color: isDarkMode ? white : grayBlack,
+              weight: FontWeight.bold,
+            ),
+            const SizedBox(width: 10),
             InkWell(
-              onTap: value.quantity == 10 ||
-                  value.quantity >=
-                      widget.clothDetails.variants[0]
-                          .sizes[value.selectedSize].stock
+              onTap: value.quantity == 10 || value.quantity >= stock
                   ? null
                   : () {
                 value.addValue();
@@ -542,76 +654,69 @@ class _ProductDetailsState extends State<ProductDetails> {
                 height: 45,
                 padding: EdgeInsets.all(0),
                 decoration: BoxDecoration(
-                    color: value.quantity == 10 ||
-                        value.quantity >=
-                            widget.clothDetails.variants[0]
-                                .sizes[value.selectedSize].stock
-                        ? Colors.grey.shade300
-                        : lightGrayBlack,
-                    shape: BoxShape.circle),
+                  color: value.quantity == 10 || value.quantity >= stock
+                      ? Colors.grey.shade300
+                      : lightGrayBlack,
+                  shape: BoxShape.circle,
+                ),
                 child: headingFont(
-                    text: "+",
-                    weight: FontWeight.bold,
-                    color: value.quantity == 10 ||
-                        value.quantity >=
-                            widget.clothDetails.variants[0]
-                                .sizes[value.selectedSize].stock
-                        ? grayBlack
-                        : white),
+                  text: "+",
+                  weight: FontWeight.bold,
+                  color: value.quantity == 10 || value.quantity >= stock
+                      ? grayBlack
+                      : white,
+                ),
               ),
-            )
+            ),
           ],
         ),
       );
     });
   }
 
-  bool _isItemAlreadyInCart() {
+  bool _isItemAlreadyInCart(ClothingProductModel productDetails) {
     final cartProvider = context.read<CartProvider>();
+    final productDetailsProvider = context.read<ProductDetailsProvider>();
+
     for (int i = 0; i < cartProvider.cartItems.length; ++i) {
-      if (cartProvider.cartItems[i].id.contains(widget.clothDetails.id) &&
-          context
-              .read<ProductDetailsProvider>()
-              .quantity ==
-              cartProvider.cartItems[i].pieces) {
+      if (cartProvider.cartItems[i].id.contains(productDetails.id) &&
+          productDetailsProvider.quantity == cartProvider.cartItems[i].pieces) {
         return true;
       }
     }
     return false;
   }
 
-  void _addProductToCart() async {
-    final cartProvider = context.read<ProductDetailsProvider>();
+  void _addProductToCart(ClothingProductModel productDetails) async {
+    final productDetailsProvider = context.read<ProductDetailsProvider>();
+    final cartProvider = context.read<CartProvider>();
 
-    final int totalPrice = (cartProvider.quantity *
-        ((widget.clothDetails.price / 100) *
-            (100 - widget.clothDetails.discount)))
+    final int totalPrice = (productDetailsProvider.quantity *
+        ((productDetails.price / 100) * (100 - productDetails.discount)))
         .toInt();
     final cartProduct = CartProducts(
-      id: widget.clothDetails.id,
-      pieces: cartProvider.quantity,
+      id: productDetails.id,
+      pieces: productDetailsProvider.quantity,
       total: totalPrice.toString(),
-      title: widget.clothDetails.title,
-      price: widget.clothDetails.price,
-      discount: widget.clothDetails.discount,
-      size:
-      widget.clothDetails.variants[0].sizes[cartProvider.selectedSize].size,
-      photoUrl: widget.clothDetails.images,
-      colorHex:
-      widget.clothDetails.variants[0].colors[cartProvider.selectedColor],
-      category: widget.clothDetails.category,
-      gender: widget.clothDetails.gender,
+      title: productDetails.title,
+      price: productDetails.price,
+      discount: productDetails.discount,
+      size: productDetails
+          .variants[0].sizes[productDetailsProvider.selectedSize].size,
+      photoUrl: productDetails.images,
+      colorHex: productDetails
+          .variants[0].colors[productDetailsProvider.selectedColor],
+      category: productDetails.category,
+      gender: productDetails.gender,
     );
 
-    // Add to cart and store in Firestore
-    context.read<CartProvider>().addProductToCart(cartProduct);
-    context.read<CartProvider>().storeClothsList(cartProduct);
-    // Reset quantity in the ProductDetailsProvider
-    context.read<ProductDetailsProvider>().resetQuantity();
-    // Navigate to cart screen
+    cartProvider.addProductToCart(cartProduct);
+    cartProvider.storeClothsList(cartProduct);
+    productDetailsProvider.resetQuantity();
+
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MyCart()),
+      MaterialPageRoute(builder: (context) => const MyCart()),
     );
   }
 
@@ -621,59 +726,118 @@ class _ProductDetailsState extends State<ProductDetails> {
     );
   }
 
-  Widget _buttonContent(bool isDarkMode) {
-    return InkWell(
-      onTap: () async {
-        bool isAlreadyInCart = _isItemAlreadyInCart();
+  Widget _buttonContent({
+    required bool isDarkMode,
+    required ClothingProductModel productDetails,
+  }) {
+    return Consumer<ProductDetailsProvider>(builder: (context, value, child) {
+      final selectedSize = value.selectedSize;
+      final stock = productDetails.variants[0].sizes[selectedSize].stock;
+      return InkWell(
+        onTap: stock == 0
+            ? null
+            : () async {
+          bool isAlreadyInCart = _isItemAlreadyInCart(productDetails);
 
-        if (!isAlreadyInCart) {
-          // Add the product to the cart
-          _addProductToCart();
-        } else {
-          // Show a snackbar if the item is already in the cart
-          _showItemAlreadyInCartSnackbar();
-        }
-      },
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 40),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: isDarkMode
-                ? [lightOrange, darkOrange]
-                : [lightBlack, darkBlack],
+          if (!isAlreadyInCart) {
+            _addProductToCart(productDetails);
+          } else {
+            _showItemAlreadyInCartSnackbar();
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: stock == 0
+                ? LinearGradient(
+                colors: [Colors.grey.shade300, Colors.grey.shade300])
+                : LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: isDarkMode
+                  ? [lightOrange, darkOrange]
+                  : [lightBlack, darkBlack],
+            ),
+          ),
+          child: mediumFont(
+            text: stock == 0 ? "Out of Stock" : "Add to Cart",
+            color: stock == 0 ? grayBlack : white,
           ),
         ),
-        child: mediumFont(text: "Add to Cart", color: white),
-      ),
-    );
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<DarkModeProvider>(context);
-    return Scaffold(
-      bottomSheet: Container(
-        padding: EdgeInsets.all(8),
-        decoration: BoxDecoration(
-            color: themeProvider.isDarkMode
-                ? lightGrayBlack
-                : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(16)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _quantityCounter(isDarkMode: themeProvider.isDarkMode),
-            _buttonContent(themeProvider.isDarkMode)
-          ],
-        ),
-      ),
-      backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
-      appBar: _productDetailsAppbar(isDarkMode: themeProvider.isDarkMode),
-      body: _productDetailsBody(isDarkMode: themeProvider.isDarkMode),
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("Cloths")
+          .doc(widget.gender)
+          .collection(widget.category)
+          .doc(widget.id)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
+            appBar: _productDetailsAppbar(
+                isDarkMode: themeProvider.isDarkMode),
+            body: Center(child: Text("Error loading product details")),
+          );
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
+            appBar: _productDetailsAppbar(
+                isDarkMode: themeProvider.isDarkMode),
+            body: Center(child: Text("No data available")),
+          );
+        }
+
+        final data = snapshot.data!.data();
+        if (data is! Map<String, dynamic>) {
+          return Center(child: Text("Invalid data format"));
+        }
+
+        final productDetails = ClothingProductModel.fromMap(data);
+
+        return Scaffold(
+          bottomSheet: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: themeProvider.isDarkMode
+                  ? lightGrayBlack
+                  : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _quantityCounter(
+                  isDarkMode: themeProvider.isDarkMode,
+                  productDetails: productDetails,
+                ),
+                _buttonContent(
+                  isDarkMode: themeProvider.isDarkMode,
+                  productDetails: productDetails,
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
+          appBar: _productDetailsAppbar(
+              isDarkMode: themeProvider.isDarkMode),
+          body: _productDetailsBody(
+              isDarkMode: themeProvider.isDarkMode),
+        );
+      },
     );
   }
+
 }

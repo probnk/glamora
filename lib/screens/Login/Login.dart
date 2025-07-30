@@ -21,7 +21,6 @@ class _LoginState extends State<Login> {
   Future<void> setSkip() async {
     final setGuestUser = await SharedPreferences.getInstance();
     await setGuestUser.setBool('skip', true);
-    print("Shared Preference 3: ${setGuestUser.getBool('skip')}");
   }
 
 

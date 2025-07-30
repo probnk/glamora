@@ -69,6 +69,32 @@ class ClothingProductModel {
     );
   }
 
+  factory ClothingProductModel.fromMap(Map<String, dynamic> data) {
+    return ClothingProductModel(
+      id: data['id'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      tags: List<String>.from(data['tags'] ?? []),
+      type: data['type'] ?? '',
+      category: data['category'] ?? '',
+      gender: data['gender'] ?? '',
+      price: (data['price'] as num?)?.toInt() ?? 0,
+      discount: data['discount'] ?? 0,
+      images: List<String>.from(data['images'] ?? []),
+      front: data['front'] ?? '',
+      back: data['back'] ?? '',
+      totalOrders: data['totalOrders'] ?? 0,
+      variants: (data['variants'] as List<dynamic>?)
+          ?.map((v) => ClothingVariantModel.fromMap(v))
+          .toList() ?? [],
+      reviews: (data['reviews'] as List<dynamic>?)
+          ?.map((r) => ProductReviewModel.fromMap(r))
+          .toList() ?? [],
+      createdAt: data['createdAt'] ?? '',
+      updatedAt: data['updatedAt'] ?? '',
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

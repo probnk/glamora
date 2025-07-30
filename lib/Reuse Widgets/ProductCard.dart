@@ -42,10 +42,7 @@ ProductCard(
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => ProductDetails(
-                      clothDetails: cloth,
-                      index: index,
-                    )));
+                builder: (context) => ProductDetails(id: cloth.id,gender: cloth.gender,category: cloth.category)));
       },
       child: Card(
         elevation: themeProvider.isDarkMode ? 3 : 0,
@@ -131,12 +128,6 @@ ProductCard(
                             )
                           ],
                         ),
-                        Align(
-                            alignment: Alignment.topRight,
-                            child: checkAndAddWishlistItems(
-                                cloth: cloth,
-                                index: index,
-                                currentUser: currentUser))
                       ],
                     ),
                   ),
@@ -167,6 +158,13 @@ ProductCard(
                 ],
               ),
             ),
+            Positioned(
+                left: 5,
+                top: 0,
+                child: checkAndAddWishlistItems(
+                    cloth: cloth,
+                    index: index,
+                    currentUser: currentUser)),
             Positioned(
                 right: 5,
                 top: 5,

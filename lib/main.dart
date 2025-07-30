@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:glamora/firebase_options.dart';
 import 'package:glamora/providers/CartProvider.dart';
+import 'package:glamora/providers/ChatProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/HistoryProvider.dart';
 import 'package:glamora/providers/HomeProvider.dart';
@@ -54,6 +55,7 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => ProductListProvider()),
           ChangeNotifierProvider(create: (context) => ReviewProvider()),
           ChangeNotifierProvider(create: (context) => GenderCategoryProvider()),
+          ChangeNotifierProvider(create: (context) => ChatProvider())
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,

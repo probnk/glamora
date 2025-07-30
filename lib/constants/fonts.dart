@@ -17,7 +17,7 @@ smallFont(
       text,
       style: GoogleFonts.montserrat(
           color: color,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: weight,
           decoration: isDiscounted ? TextDecoration.lineThrough : null),
       textAlign: align,
@@ -42,7 +42,7 @@ mediumFont(
       text,
       style: GoogleFonts.montserrat(
           color: color,
-          fontSize: 18,
+          fontSize: 17,
           fontWeight: weight,
           decoration: isDiscounted ? TextDecoration.lineThrough : null),
       textAlign: align,
@@ -66,7 +66,7 @@ productTitle(
         overflow: textOverFlow,
         style: GoogleFonts.exo2(
             color: color,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: weight,
             decoration: isDiscounted ? TextDecoration.lineThrough : null)),
   );
@@ -79,7 +79,7 @@ headingFont(
     TextAlign align = TextAlign.center}) {
   return Text(
     text,
-    style: GoogleFonts.exo2(color: color, fontSize: 30, fontWeight: weight),
+    style: GoogleFonts.exo2(color: color, fontSize: 28, fontWeight: weight),
     textAlign: align,
   );
 }
@@ -89,5 +89,5 @@ titleFont(
     Color color = grayBlack,
     FontWeight weight = FontWeight.bold}) {
   return Text(text,
-      style: GoogleFonts.abel(fontSize: 28, color: color, fontWeight: weight));
+      style: GoogleFonts.abel(fontSize: 26, color: color, fontWeight: weight));
 }
