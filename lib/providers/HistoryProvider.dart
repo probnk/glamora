@@ -15,6 +15,7 @@ class HistoryProvider with ChangeNotifier {
 
   void addHistoryProducts(HistoryModel historyModel) {
     _historyModelList.add(historyModel);
+    _sortHistory();
     notifyListeners();
   }
 
@@ -33,7 +34,7 @@ class HistoryProvider with ChangeNotifier {
           .doc(FirebaseAuth.instance.currentUser!.email)
           .collection("orderHistory")
           .get();
-      print("history: ${querySnapshot}");
+
       if (querySnapshot.docs.isEmpty) {
         _historyModelList = [];
       } else {
@@ -42,7 +43,7 @@ class HistoryProvider with ChangeNotifier {
         }).toList();
 
         _historyModelList = historyItems;
-        print(_historyModelList);
+        _sortHistory();
       }
     } catch (e) {
       print("Error fetching history: $e");
@@ -50,6 +51,17 @@ class HistoryProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void _sortHistory() {
+    _historyModelList.sort((a, b) {
+      // First compare dates in descending order
+      final dateComparison = b.orderDate.compareTo(a.orderDate);
+      if (dateComparison != 0) return dateComparison;
+
+      // If dates are the same, compare times in descending order
+      return b.orderTime.compareTo(a.orderTime);
+    });
   }
 
   void setSelectedOrderHistory(int index) {

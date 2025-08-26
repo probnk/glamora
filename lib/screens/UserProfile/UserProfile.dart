@@ -18,8 +18,7 @@ import 'package:glamora/screens/History/History.dart';
 import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/MyCart/MyCart.dart';
 import 'package:glamora/screens/MyWishlist/MyWishlist.dart';
-import 'package:glamora/screens/Review/Review.dart';
-import 'package:glamora/screens/Track%20Order/TrackOrder.dart';
+import 'package:glamora/screens/Track%20Order/OrderListScreen.dart';
 import 'package:glamora/screens/UserProfile/UserDetails.dart';
 import 'package:line_icons/line_icon.dart';
 import 'package:line_icons/line_icons.dart';
@@ -39,7 +38,7 @@ class UserProfile extends StatelessWidget {
       {
         'title': 'Track Order',
         'icon': Icons.track_changes_rounded,
-        'screen': TrackOrder()
+        'screen': OrdersScreen()
       },
       {'title': 'Cart', 'icon': Icons.card_travel_rounded, 'screen': MyCart()},
       {

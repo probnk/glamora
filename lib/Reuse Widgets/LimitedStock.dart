@@ -4,7 +4,6 @@ import 'package:flutter/widgets.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 limitedStock({ required BuildContext context}){

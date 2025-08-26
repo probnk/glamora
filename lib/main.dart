@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:glamora/firebase_options.dart';
 import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/ChatProvider.dart';
@@ -15,8 +16,10 @@ import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/ReviewProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
+import 'package:glamora/providers/aiChatBotProvider.dart';
 import 'package:glamora/providers/onBoardingProvider.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/Splash Screen/SplashScreen.dart';
 
 @pragma('vm:entry-point')
@@ -29,6 +32,15 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+// Load environment variables
+  await dotenv.load(fileName: "assets/.env");
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitDown,
     DeviceOrientation.portraitUp
@@ -55,7 +67,8 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => ProductListProvider()),
           ChangeNotifierProvider(create: (context) => ReviewProvider()),
           ChangeNotifierProvider(create: (context) => GenderCategoryProvider()),
-          ChangeNotifierProvider(create: (context) => ChatProvider())
+          ChangeNotifierProvider(create: (context) => ChatProvider()),
+          ChangeNotifierProvider(create: (context) => AIChatBotProvider()),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,

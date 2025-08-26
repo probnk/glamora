@@ -5,12 +5,11 @@ import 'package:glamora/Services/getServerKey.dart';
 import 'package:http/http.dart' as http;
 
 class SendNotificationService {
-  static Future<void> sendNotificationUsingApi({
-    required String? title,
-    required String? body,
-    required Map<String, dynamic>? data,
-    required String topic
-  }) async {
+  static Future<void> sendNotificationUsingApi(
+      {required String? title,
+      required String? body,
+      required Map<String, dynamic>? data,
+      required String topic}) async {
     String serverKey = await GetServerKey().getServerKeyToken();
     String url =
         "https://fcm.googleapis.com/v1/projects/glamora-c4094/messages:send";
@@ -22,15 +21,19 @@ class SendNotificationService {
 
     //mesaage
     Map<String, dynamic> message = {
-      "message":{
-        "notification":{
+      "message": {
+        "notification": {
           "body": body,
-          "title":title,
+          "title": title,
         },
         "android": {
-          "notification": {"sound": "money", "icon": "ic_stat_icon"}
+          "notification": {
+            "sound": "money",
+            "icon": "@drawable/ic_stat_icon",
+            "channel_id": "high_importance_channel"
+          }
         },
-        "topic":topic
+        "topic": topic
       }
     };
 

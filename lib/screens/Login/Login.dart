@@ -1,12 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/Google%20Auth%20Services/GoogleAuthServices.dart';
 import 'package:glamora/Reuse%20Widgets/guestUser.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glamora/screens/onBoarding%20Screen/onBoardingScreen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -16,24 +18,16 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-
-
   Future<void> setSkip() async {
     final setGuestUser = await SharedPreferences.getInstance();
     await setGuestUser.setBool('skip', true);
   }
 
-
-  //Login  Page Parent Container
+  //Login Page Parent Container
   _loginBody() {
     return Container(
       padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: LinearGradient(
-        colors: [lightPurple3, lightBlue3],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      )),
+      decoration: BoxDecoration(color: green),
       child: _loginComponents(),
     );
   }
@@ -46,8 +40,9 @@ class _LoginState extends State<Login> {
             label: "SKIP",
             onPressed: () {
               setSkip();
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BottomNavBar()));
-        })
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => BottomNavBar()));
+            })
       ],
     );
   }
@@ -55,18 +50,25 @@ class _LoginState extends State<Login> {
   loginDesign() {
     return Column(
       children: [
-        Image.asset("assets/images/glamora.png", width: 150, height: 150),
-        headingFont(text: "Login", color: lightGrayBlack),
+        SizedBox(height: 60),
         Image.asset(
-          "assets/images/login.png",
+          "assets/images/t-shirt1.png",
           width: double.infinity,
+          filterQuality: FilterQuality.high,
           height: 300,
         ),
+        SizedBox(height: 10),
+        Text(
+          "Select\n a Login Method",
+          style: GoogleFonts.lobster(fontSize: 48, color: Colors.white70),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 20),
         smallFont(
             text:
-            "\nLog in with Gmail to unlock exclusive offers and discover amazing deals tailored just for you!",
+                "\nLog in with Gmail to unlock exclusive offers and discover amazing deals tailored just for you!",
             color: grayBlack),
-        SizedBox(height: 80),
+        SizedBox(height: 50),
         Container(
             width: double.maxFinite,
             margin: EdgeInsets.symmetric(horizontal: 20),
@@ -82,21 +84,20 @@ class _LoginState extends State<Login> {
                 if (user != null) {
                   final uid = user.uid;
 
-                  // Check in Firestore
-                  final doc = await FirebaseFirestore.instance
-                      .collection('personalization')
-                      .doc(uid)
-                      .get();
+                  // Check in Supabase
+                  final response = await Supabase.instance.client
+                      .from('personalization')
+                      .select()
+                      .eq('uid', uid);
 
-                  if (doc.exists) {
+                  if (response != null) {
                     // User already personalized, go to BottomNavBar
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                          builder: (context) => BottomNavBar()),
+                      MaterialPageRoute(builder: (context) => BottomNavBar()),
                     );
                   } else {
-                    // User has no personalization yet, go to OnboardingScreen
+                    // User has no personalization yet, go to GenderCategoryScreen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -105,12 +106,11 @@ class _LoginState extends State<Login> {
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Welcome, ${user.displayName}!')),
+                    SnackBar(content: Text('Welcome, ${user.displayName}!')),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Login Failed")),
+                    SnackBar(content: smallFont(text: "Login Failed")),
                   );
                 }
               },

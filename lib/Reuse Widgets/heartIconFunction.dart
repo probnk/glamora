@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:glamora/constants/colors.dart';
-import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/productModel.dart';
 import 'package:glamora/models/wishListProducts.dart';
 import 'package:glamora/providers/WishListProvider.dart';
-import 'package:glamora/screens/Login/Login.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 
@@ -30,22 +28,19 @@ checkAndAddWishlistItems(
       }
     }
     return IconButton(
-        onPressed: () async {
-            final wishListProvider =
-                Provider.of<WishListProvider>(context, listen: false);
-            if (!isFound) {
-              wishListProvider.addWishListItem(wishlistData);
-              wishListProvider.storeClothsList(wishlistData);
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: smallFont(text: "${cloth.title} added")));
-            } else {
-              wishListProvider.deleteWishListItem(
-                  wishListProvider.wishListProducts[index].id);
-              value.removeWishListItems(cloth.id);
-            }
-        },
-        icon: isFound
-            ? Icon(IconlyBold.heart, color: lightRed)
-            : Icon(IconlyLight.heart, color: Colors.grey.shade400));
+      onPressed: () async{
+        if (!isFound) {
+          value.addWishListItem(wishlistData);
+          value.storeClothsList(wishlistData);
+        } else {
+          value.deleteWishListItem(cloth.id);
+          value.removeWishListItems(cloth.id);
+        }
+      },
+      icon: Icon(
+        isFound ? IconlyBold.heart : IconlyLight.heart,
+        color: isFound ? lightRed : Colors.grey.shade400,
+      ),
+    );
   });
 }

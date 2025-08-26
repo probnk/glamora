@@ -1,7 +1,4 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/constants/colors.dart';
@@ -11,6 +8,9 @@ import 'package:glamora/providers/onBoardingProvider.dart';
 import 'package:glamora/Reuse Widgets/userDetailsTexfield.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class GenderCategoryScreen extends StatelessWidget {
   GenderCategoryScreen({Key? key}) : super(key: key);
@@ -50,18 +50,59 @@ class GenderCategoryScreen extends StatelessWidget {
 
       String? imageUrl;
       if (genderProvider.selectedImage != null) {
-        String fileName = 'profile_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
-        UploadTask uploadTask = FirebaseStorage.instance
-            .ref()
-            .child(fileName)
-            .putFile(genderProvider.selectedImage!);
-        TaskSnapshot snapshot = await uploadTask;
-        imageUrl = await snapshot.ref.getDownloadURL();
+        try {
+          String fileName = 'profile_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          print('Uploading image to: $fileName');
+
+          // Compress the image
+          final compressedImage = await FlutterImageCompress.compressAndGetFile(
+            genderProvider.selectedImage!.path,
+            '${genderProvider.selectedImage!.path}.compressed.jpg',
+            quality: 85, // Adjust quality (0-100, 85 is a good balance)
+            minWidth: 1024, // Optional: Resize to max 1024px width
+            minHeight: 1024, // Optional: Resize to max 1024px height
+          );
+
+          if (compressedImage == null) {
+            throw Exception('Image compression failed');
+          }
+
+          // Upload the compressed image
+          await Supabase.instance.client.storage
+              .from('profile_images')
+              .upload(fileName, File(compressedImage.path));
+          imageUrl = Supabase.instance.client.storage
+              .from('profile_images')
+              .getPublicUrl(fileName);
+          print('Image uploaded, public URL: $imageUrl');
+
+          // Clean up temporary compressed file
+          await File(compressedImage.path).delete();
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading image: $e')),
+          );
+          print('Error uploading image: $e');
+        }
       }
 
       String uid = FirebaseAuth.instance.currentUser!.uid;
+      print('Firebase UID: $uid');
 
-      await FirebaseFirestore.instance.collection('personalization').doc(uid).set({
+      try {
+        final response = await Supabase.instance.client.rpc('set_user_id', params: {'user_id': uid});
+        print('set_user_id response: $response');
+        await Future.delayed(Duration(milliseconds: 100));
+        final userIdCheck = await Supabase.instance.client.rpc('get_user_id', params: {});
+        print('Current app.user_id: $userIdCheck');
+      } catch (e) {
+        print('Error calling set_user_id: $e');
+        throw e;
+      }
+
+      print('Attempting to upsert data to personalization table');
+      await Supabase.instance.client.from('personalization').upsert({
+        'uid': uid,
         'gender': genderProvider.selectedGender,
         'categories': genderProvider.selectedCategories,
         'name': nameController.text.isEmpty
@@ -71,7 +112,7 @@ class GenderCategoryScreen extends StatelessWidget {
         'picture': imageUrl?.isNotEmpty == true
             ? imageUrl
             : FirebaseAuth.instance.currentUser!.photoURL,
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp': DateTime.now().toIso8601String(),
       });
 
       genderProvider.clear();
@@ -83,6 +124,7 @@ class GenderCategoryScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving data: $e')),
       );
+      print('Error saving data: $e');
     } finally {
       loadingProvider.setSubmitLoading(false);
     }
@@ -142,8 +184,7 @@ class GenderCategoryScreen extends StatelessWidget {
                       : Center(
                     child: CircleAvatar(
                       radius: 100,
-                      backgroundImage:
-                      FileImage(genderProvider.selectedImage!),
+                      backgroundImage: FileImage(genderProvider.selectedImage!),
                     ),
                   ),
                 ),
@@ -179,8 +220,7 @@ class GenderCategoryScreen extends StatelessWidget {
                         color: isSelected ? white : (isDarkMode ? white : grayBlack),
                         weight: FontWeight.w500,
                       ),
-                      backgroundColor:
-                      isDarkMode ? lightGrayBlack : Colors.grey.shade100,
+                      backgroundColor: isDarkMode ? lightGrayBlack : Colors.grey.shade100,
                       selected: isSelected,
                       checkmarkColor: isDarkMode ? lightGrayBlack : lightGreen,
                       selectedColor: isDarkMode ? lightGreen : grayBlack,
@@ -198,21 +238,18 @@ class GenderCategoryScreen extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   children: categories.map((category) {
-                    final isSelected =
-                    genderProvider.selectedCategories.contains(category);
+                    final isSelected = genderProvider.selectedCategories.contains(category);
                     return FilterChip(
                       label: smallFont(
                         text: category,
                         color: isSelected ? white : (isDarkMode ? white : grayBlack),
                         weight: FontWeight.w500,
                       ),
-                      backgroundColor:
-                      isDarkMode ? lightGrayBlack : Colors.grey.shade100,
+                      backgroundColor: isDarkMode ? lightGrayBlack : Colors.grey.shade100,
                       selected: isSelected,
                       checkmarkColor: isDarkMode ? lightGrayBlack : lightGreen,
                       selectedColor: isDarkMode ? lightGreen : grayBlack,
-                      onSelected: (_) =>
-                          genderProvider.toggleCategory(category),
+                      onSelected: (_) => genderProvider.toggleCategory(category),
                     );
                   }).toList(),
                 ),

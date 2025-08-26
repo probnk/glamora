@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:glamora/Reuse%20Widgets/features.dart';
+import 'package:glamora/Reuse%20Widgets/genderCategoryContainer.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
+import 'package:glamora/constants/reponsivness.dart';
 import 'package:glamora/models/ReviewsModel.dart';
 import 'package:glamora/models/cartProducts.dart';
 import 'package:glamora/models/productModel.dart';
@@ -114,8 +117,8 @@ class _ProductDetailsState extends State<ProductDetails> {
                           itemBuilder: (context, index) {
                             return networkImagesCache(
                               url: productDetails.images[index],
-                              height: MediaQuery.of(context).size.height * .4,
                               width: MediaQuery.of(context).size.width,
+                              height: 400,
                             );
                           },
                         ),
@@ -155,6 +158,7 @@ class _ProductDetailsState extends State<ProductDetails> {
         time = _formatTime(tempDate);
       }
     }
+    final screenWidth = getResponsiveWidth(MediaQuery.of(context).size.width);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -179,16 +183,15 @@ class _ProductDetailsState extends State<ProductDetails> {
             children: [
               Row(
                 children: [
-                  mediumFont(
-                    text: productDetails.gender,
-                    color: Colors.grey,
-                    align: TextAlign.start,
-                  ),
+                  genderCategoryContainer(
+                      text: productDetails.gender,
+                      isDarkMode:isDarkMode,
+                      color: purple.withAlpha(100)),
                   const SizedBox(width: 4),
-                  mediumFont(
-                    text: productDetails.category,
-                    color: Colors.grey,
-                  ),
+                  genderCategoryContainer(
+                      text: productDetails.category,
+                      isDarkMode: isDarkMode,
+                      color: green.withAlpha(100)),
                 ],
               ),
               Consumer<WishListProvider>(builder: (context, value, child) {
@@ -530,6 +533,9 @@ class _ProductDetailsState extends State<ProductDetails> {
             subTitle: productDetails.description,
             isDarkMode: isDarkMode,
           ),
+          if(productDetails.features.isNotEmpty)
+           mediumFont(text: 'Features',color: isDarkMode ? white : grayBlack,weight: FontWeight.bold),
+            buildFeatureList(productDetails.features, isDarkMode, screenWidth),
           const SizedBox(height: 60),
         ],
       ),
@@ -589,7 +595,7 @@ class _ProductDetailsState extends State<ProductDetails> {
         ),
         smallFont(
           text: subTitle,
-          color: Colors.grey,
+          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade500,
           align: TextAlign.start,
         ),
         const SizedBox(height: 8),

@@ -60,7 +60,7 @@ class _MyCartState extends State<MyCart> {
           ));
         else
           return Container(
-            height: 210,
+            height: 150,
             width: double.infinity,
             decoration: BoxDecoration(
                 color: isDarkMode ? lightGrayBlack : white,
@@ -73,33 +73,33 @@ class _MyCartState extends State<MyCart> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 50,
-                  child: TextFormField(
-                    cursorColor: Colors.black,
-                    controller: _couponController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: isDarkMode ? grayBlack : Colors.grey.shade100,
-                      hintText: "Add coupon code",
-                      hintStyle: TextStyle(
-                          color: isDarkMode ? white : Colors.grey.shade400),
-                      prefixIcon: Icon(
-                        CupertinoIcons.ticket,
-                        color: Colors.grey,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(color: Colors.transparent)),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(color: Colors.transparent)),
-                    ),
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-                SizedBox(height: 10),
+                // Container(
+                //   width: MediaQuery.of(context).size.width,
+                //   height: 50,
+                //   child: TextFormField(
+                //     cursorColor: Colors.black,
+                //     controller: _couponController,
+                //     decoration: InputDecoration(
+                //       filled: true,
+                //       fillColor: isDarkMode ? grayBlack : Colors.grey.shade100,
+                //       hintText: "Add coupon code",
+                //       hintStyle: TextStyle(
+                //           color: isDarkMode ? white : Colors.grey.shade400),
+                //       prefixIcon: Icon(
+                //         CupertinoIcons.ticket,
+                //         color: Colors.grey,
+                //       ),
+                //       focusedBorder: OutlineInputBorder(
+                //           borderRadius: BorderRadius.circular(20),
+                //           borderSide: BorderSide(color: Colors.transparent)),
+                //       enabledBorder: OutlineInputBorder(
+                //           borderRadius: BorderRadius.circular(20),
+                //           borderSide: BorderSide(color: Colors.transparent)),
+                //     ),
+                //     style: TextStyle(color: Colors.white, fontSize: 18),
+                //   ),
+                // ),
+                // SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

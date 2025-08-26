@@ -15,13 +15,6 @@ class History extends StatefulWidget {
 }
 
 class _HistoryState extends State<History> {
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   // Fetch order history when the screen is initialized
-  //   context.read<HistoryProvider>().fetchOrderHistory();
-  // }
-
   @override
   void initState() {
     super.initState();
@@ -30,12 +23,11 @@ class _HistoryState extends State<History> {
     });
   }
 
-  // Build AppBar based on theme
   AppBar _buildAppBar(DarkModeProvider themeProvider) {
     return AppBar(
       backgroundColor: themeProvider.isDarkMode ? lightGrayBlack : white,
       iconTheme:
-          IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
+      IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
       title: titleFont(
         text: "Order History",
         color: themeProvider.isDarkMode ? white : grayBlack,
@@ -44,7 +36,6 @@ class _HistoryState extends State<History> {
     );
   }
 
-  // Body of the History screen, which includes the list
   Widget _historyBody(DarkModeProvider themeProvider) {
     return ListView(
       shrinkWrap: true,
@@ -53,7 +44,6 @@ class _HistoryState extends State<History> {
     );
   }
 
-  // ListView to display order history
   Widget _historyList({required bool isDarkMode}) {
     final historyProvider = Provider.of<HistoryProvider>(context);
 
@@ -72,15 +62,13 @@ class _HistoryState extends State<History> {
     );
   }
 
-  // A loading indicator while fetching the data
   Widget _buildLoadingIndicator() {
     return Center(
         child: CircularProgressIndicator(
-      color: Colors.grey.shade300,
-    ));
+          color: Colors.grey.shade300,
+        ));
   }
 
-  // Display the history list
   Widget _buildHistoryList(HistoryProvider historyProvider, bool isDarkMode) {
     return ListView.builder(
       shrinkWrap: true,
@@ -103,7 +91,6 @@ class _HistoryState extends State<History> {
     );
   }
 
-  // Build individual order list item
   Widget _buildOrderItem(HistoryModel order, int index, bool isDarkMode) {
     return Consumer<HistoryProvider>(builder: (context, value, child) {
       return InkWell(
@@ -113,11 +100,11 @@ class _HistoryState extends State<History> {
         child: Container(
           color: isDarkMode
               ? (value.selectedOrderHistory == index
-                  ? darkGreen.withAlpha(150)
-                  : lightGrayBlack)
+              ? darkGreen.withAlpha(150)
+              : lightGrayBlack)
               : (value.selectedOrderHistory == index
-                  ? Colors.grey.shade50
-                  : grayBlack),
+              ? Colors.grey.shade50
+              : grayBlack),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,7 +126,7 @@ class _HistoryState extends State<History> {
                   smallFont(text: "${order.orderDate}", color: isDarkMode ? Colors.grey.shade300 : Colors.grey),
                   smallFont(
                       text:
-                          "Total: Rs ${order.cartItems.fold(0, (total, item) => total + int.parse(item.total))}",
+                      "Total: Rs ${order.cartItems.fold(0, (total, item) => total + int.parse(item.total))}",
                       color: isDarkMode ? white : grayBlack,
                       weight: FontWeight.w600,
                       maxWidth: MediaQuery.of(context).size.width * .5)
@@ -153,8 +140,8 @@ class _HistoryState extends State<History> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => OrderHistoryVoice(
-                                  orderDetails: order,
-                                )));
+                              orderDetails: order,
+                            )));
                   },
                   child: smallFont(
                       text: "View Detail's >",

@@ -12,6 +12,7 @@ class ClothingProductModel {
   String gender;
   int price; // Added price field
   int discount;
+  List<String> features;
   List<String> images;
   String front;
   String back;
@@ -31,6 +32,7 @@ class ClothingProductModel {
     this.gender = "",
     this.price = 0,
     this.discount = 0,
+    this.features = const [],
     this.images = const [],
     this.front = "",
     this.back = "",
@@ -53,9 +55,10 @@ class ClothingProductModel {
       category: data['category'] ?? '',
       gender: data['gender'] ?? '',
       price: (data['price'] as num?)?.toInt() ?? 0,
-      discount: data['discount'],
+      discount: data['discount'] ?? 0,
+      features: List<String>.from(data['features'] ?? []), // Handle null features
       images: List<String>.from(data['images'] ?? []),
-      front: data['front'],
+      front: data['front'] ?? '',
       back: data['back'] ?? '',
       totalOrders: data['totalOrders'],
       variants: (data['variants'] as List<dynamic>?)
@@ -80,6 +83,7 @@ class ClothingProductModel {
       gender: data['gender'] ?? '',
       price: (data['price'] as num?)?.toInt() ?? 0,
       discount: data['discount'] ?? 0,
+      features: List<String>.from(data['features'] ?? []), // Handle null features
       images: List<String>.from(data['images'] ?? []),
       front: data['front'] ?? '',
       back: data['back'] ?? '',
@@ -106,6 +110,7 @@ class ClothingProductModel {
       'gender': gender,
       'price': price,
       'discount':discount,
+      'features':features,
       'images': images,
       'front': front,
       'back': back,

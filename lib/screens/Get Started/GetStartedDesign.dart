@@ -56,12 +56,12 @@ class GetStartedDesign extends StatelessWidget {
                 ],
               ),
               SizedBox(height: 20),
-              Center(child: headingFont(text: title)),
+              Center(child: headingFont(text: title,color: Colors.yellowAccent)),
               Container(
                   alignment: Alignment.center,
                   constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * .9),
-                  child: smallFont(text: subTitle))
+                  child: smallFont(text: subTitle,color: white))
             ],
           ),
         ),

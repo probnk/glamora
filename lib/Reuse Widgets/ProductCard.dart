@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/LimitedStock.dart';
+import 'package:glamora/Reuse%20Widgets/genderCategoryContainer.dart';
 import 'package:glamora/Reuse%20Widgets/heartIconFunction.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
+import 'package:glamora/Reuse%20Widgets/ratingCalculations.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/productModel.dart';
@@ -10,10 +12,12 @@ import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:glamora/screens/Product%20Details/ProductDetails.dart';
 import 'package:provider/provider.dart';
 
+
+
 newArrivalSerumList({required var currentUser}) {
   return Consumer<ProductListProvider>(builder: (context, value, child) {
     return Container(
-      height: 360,
+      height: 380,
       child: ListView.builder(
           itemCount: value.clothsList.length,
           scrollDirection: Axis.horizontal,
@@ -34,7 +38,7 @@ ProductCard(
     required int index,
     required ClothingProductModel cloth,
     required var currentUser}) {
-  final themeProvider = Provider.of<DarkModeProvider>(context);
+  final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
   return Padding(
     padding: const EdgeInsets.only(left: 8, bottom: 5, top: 5),
     child: InkWell(
@@ -42,25 +46,31 @@ ProductCard(
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => ProductDetails(id: cloth.id,gender: cloth.gender,category: cloth.category)));
+                builder: (context) => ProductDetails(
+                    id: cloth.id,
+                    gender: cloth.gender,
+                    category: cloth.category)));
       },
       child: Card(
-        elevation: themeProvider.isDarkMode ? 3 : 0,
+        elevation: isDarkMode ? 3 : 0,
         child: Stack(
           children: [
             Container(
               width: MediaQuery.of(context).size.width * .45,
               decoration: BoxDecoration(
-                  color: themeProvider.isDarkMode ? lightGrayBlack : white,
+                  color: isDarkMode ? lightGrayBlack : white,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: themeProvider.isDarkMode
+                      color: isDarkMode
                           ? Colors.transparent
                           : Colors.grey.shade200)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  networkImagesCache(url: cloth.images[0]),
+                  networkImagesCache(
+                    url: cloth.images[0],
+                    height: 120,
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(left: 8, bottom: 8),
                     child: Stack(
@@ -70,32 +80,40 @@ ProductCard(
                           children: [
                             SizedBox(height: 10),
                             ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight: 200
-                              ),
+                              constraints: BoxConstraints(maxHeight: 200),
                               child: productTitle(
                                   text: cloth.title,
                                   maxLine: 2,
-                                  color: themeProvider.isDarkMode
+                                  color: isDarkMode
                                       ? white
                                       : lightGrayBlack),
                             ),
-                            smallFont(
-                                text: "${cloth.gender} : ${cloth.category}",
-                                color: themeProvider.isDarkMode
-                                    ? white
-                                    : Colors.grey),
+                            const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(
-                                  Icons.star_rounded,
-                                  color: Colors.yellow.shade700,
-                                ),
-                                productTitle(
-                                    text: cloth.reviews.length.toString(),
-                                    color: themeProvider.isDarkMode
-                                        ? white
-                                        : lightGrayBlack)
+                                genderCategoryContainer(
+                                    text: cloth.gender,
+                                    isDarkMode:isDarkMode,
+                                    color: purple.withAlpha(100)),
+                                const SizedBox(width: 4),
+                                genderCategoryContainer(
+                                    text: cloth.category,
+                                    isDarkMode: isDarkMode,
+                                    color: green.withAlpha(100)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                buildStarRating(
+                                    calculateAverageRating(cloth.reviews)),
+                                const SizedBox(width: 4),
+                                mediumFont(
+                                    text:
+                                    "${calculateAverageRating(cloth.reviews).toStringAsFixed(1)} (${cloth.reviews.length} reviews)",
+                                    color: isDarkMode ? white : grayBlack,
+                                    weight: FontWeight.bold),
                               ],
                             ),
                             Row(
@@ -106,13 +124,13 @@ ProductCard(
                                     children: [
                                       productTitle(
                                           text:
-                                              "Rs ${((cloth.price / 100) * (100 - cloth.discount))}",
-                                          color: themeProvider.isDarkMode
+                                              "Rs. ${((cloth.price / 100) * (100 - cloth.discount))}",
+                                          color: isDarkMode
                                               ? white
                                               : grayBlack),
                                       SizedBox(width: 5),
                                       smallFont(
-                                          text: "Rs ${cloth.price}",
+                                          text: "Rs. ${cloth.price}",
                                           color: darkRed,
                                           isDiscounted: true,
                                           weight: FontWeight.w600),
@@ -120,7 +138,7 @@ ProductCard(
                                   )
                                 else
                                   smallFont(
-                                      text: "Rs ${cloth.price}",
+                                      text: "Rs. ${cloth.price}",
                                       color: darkRed,
                                       isDiscounted: true,
                                       weight: FontWeight.w600),
@@ -162,9 +180,7 @@ ProductCard(
                 left: 5,
                 top: 0,
                 child: checkAndAddWishlistItems(
-                    cloth: cloth,
-                    index: index,
-                    currentUser: currentUser)),
+                    cloth: cloth, index: index, currentUser: currentUser)),
             Positioned(
                 right: 5,
                 top: 5,

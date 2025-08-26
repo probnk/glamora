@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:glamora/Services/getServerKey.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
-import 'package:glamora/screens/Catagory/ProductCatagory.dart';
+import 'package:glamora/screens/Catagory/ClothsCategory.dart';
 import 'package:glamora/screens/MyCart/MyCart.dart';
 import 'package:glamora/screens/MyWishlist/MyWishlist.dart';
 import 'package:glamora/screens/home/HomeScreen.dart';
@@ -21,7 +20,7 @@ class BottomNavBar extends StatefulWidget {
 class _BottomNavBarState extends State<BottomNavBar> {
 
 
-  List _screen = [HomeScreen(),ProductCatagory(),MyCart(),MyWishlist()];
+  List _screen = [HomeScreen(),ProductsScreen(),MyCart(),MyWishlist()];
   int _selectedScreen = 0;
 
   _bottomNavbar(BuildContext context){

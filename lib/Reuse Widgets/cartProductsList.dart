@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:glamora/Reuse%20Widgets/genderCategoryContainer.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
@@ -48,20 +49,16 @@ cartClothCardDesign(
     required bool isCart,
     required bool isDarkMode}) {
   return Container(
-    padding: EdgeInsets.only(top: 10),
+    padding: EdgeInsets.only(top: 5),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            Container(
-              width: 100,
-              height: 80,
-              child: networkImagesCache(
-                  url:
-                      "${isCart ? cartItems!.images[0] : wishListProducts!.images[0]}",
-                  height: 80),
-            ),
+          children: [networkImagesCache(
+            url:  "${isCart ? cartItems!.images[0] : wishListProducts!.images[0]}",
+            heightFactor: 0.11, // 25% of screen height
+            widthFactor: 0.25,   // 80% of screen width
+          ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -69,11 +66,19 @@ cartClothCardDesign(
                     text: isCart ? cartItems!.title : wishListProducts!.title,
                     maxWidth: 150,
                     color: isDarkMode ? white : grayBlack),
-                smallFont(
-                    text: isCart
-                        ? cartItems!.category
-                        : wishListProducts!.category,
-                    color: Colors.grey),
+                Row(
+                  children: [
+                    genderCategoryContainer(
+                        text: isCart ? cartItems!.gender : wishListProducts!.gender,
+                        isDarkMode:isDarkMode,
+                        color: purple.withAlpha(100)),
+                    const SizedBox(width: 4),
+                    genderCategoryContainer(
+                        text: isCart ? cartItems!.category : wishListProducts!.category,
+                        isDarkMode: isDarkMode,
+                        color: green.withAlpha(100)),
+                  ],
+                ),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +148,7 @@ cartClothCardDesign(
             )
           ],
         ),
-        SizedBox(height: 10),
+        SizedBox(height: 5),
         Divider(color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300)
       ],
     ),

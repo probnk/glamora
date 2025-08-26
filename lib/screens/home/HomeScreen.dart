@@ -15,10 +15,10 @@ import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
-import 'package:glamora/screens/Live%20Chat%20Support/MessagingScreen.dart';
 import 'package:glamora/screens/Login/Login.dart';
+import 'package:glamora/screens/SupportingChat.dart';
 import 'package:glamora/screens/UserProfile/UserProfile.dart';
-import 'package:glamora/screens/home/Notification%20Details/NotificationDetails.dart';
+import 'package:glamora/screens/home/singleCategory.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<HomeProvider>().fetchImagesList();
     context.read<ProductListProvider>().fetchClothsList();
     context.read<WishListProvider>().fetchClothsList();
-    if(currentUser != null){
+    if (currentUser != null) {
       notificationService.requestNotificationPermission();
       notificationService.getDeviceToken();
       notificationService.firebaseInit(context);
@@ -67,16 +67,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _commonActionButton(
-      {required bool isDarkMode, required IconData icon, required Function() onPressed}) {
+      {required bool isDarkMode,
+      required IconData icon,
+      required Function() onPressed}) {
     return Card(
       elevation: 3,
       margin: EdgeInsets.symmetric(horizontal: 16),
       color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-      shape:
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-      child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(icon)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      child: IconButton(onPressed: onPressed, icon: Icon(icon)),
     );
   }
 
@@ -88,33 +87,41 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: IconThemeData(
           color: themeProvider.isDarkMode ? white : lightGrayBlack,
         ),
-        title: titleFont(
+        title: headingFont(
             text: "Vision Cart",
             color: themeProvider.isDarkMode ? white : lightGrayBlack),
-        actions: currentUser != null ? [_commonActionButton(
-            isDarkMode: themeProvider.isDarkMode,
-            icon: IconlyBold.message,
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => MessagingScreen()));
-            },)] :[_commonActionButton(
-          isDarkMode: themeProvider.isDarkMode,
-          icon: IconlyLight.logout,
-          onPressed: () {
-            context.read<CartProvider>().cartItems.clear();
-            context.read<HistoryProvider>().historyModelList.clear();
-            context.read<NotificationDetailsProvider>().notificationDetails.clear();
-            context.read<RatingProvider>().ratingList.clear();
-            context.read<UserDetailsProvider>().clearUserDetails();
-            context.read<WishListProvider>().wishListProducts.clear();
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => Login()));
-          },)]
-    );
+        actions: currentUser != null
+            ? [
+                _commonActionButton(
+                  isDarkMode: themeProvider.isDarkMode,
+                  icon: IconlyBold.message,
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => SupportHomeScreen()));
+                  },
+                )
+              ]
+            : [
+                _commonActionButton(
+                  isDarkMode: themeProvider.isDarkMode,
+                  icon: IconlyLight.logout,
+                  onPressed: () {
+                    context.read<CartProvider>().cartItems.clear();
+                    context.read<HistoryProvider>().historyModelList.clear();
+                    context
+                        .read<NotificationDetailsProvider>()
+                        .notificationDetails
+                        .clear();
+                    context.read<RatingProvider>().ratingList.clear();
+                    context.read<UserDetailsProvider>().clearUserDetails();
+                    context.read<WishListProvider>().wishListProducts.clear();
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => Login()));
+                  },
+                )
+              ]);
   }
 
   _homePageBody() {
@@ -123,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: ScrollPhysics(),
       children: [
         _bannerCarousel(),
+        _categorySection(),
         _newArrivalProducts(),
       ],
     );
@@ -139,10 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 165,
             width: double.infinity,
             fit: BoxFit.fill,
-            placeholder: (context, url) =>
-                Center(
-                  child: CircularProgressIndicator(color: white),
-                ),
+            placeholder: (context, url) => Center(
+              child: CircularProgressIndicator(color: white),
+            ),
             errorWidget: (context, url, error) =>
                 Center(child: Icon(Icons.error, color: darkRed)),
           ),
@@ -156,55 +163,96 @@ class _HomeScreenState extends State<HomeScreen> {
       return value.productPhotoUrls.isEmpty
           ? Center(child: CircularProgressIndicator(color: grayBlack))
           : Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          CarouselSlider(
-            items: [
-              for (int i = 0; i < value.productPhotoUrls.length; i++)
-                bannerItem(value.productPhotoUrls[i])
-            ],
-            options: CarouselOptions(
-              height: 210,
-              enlargeCenterPage: true,
-              autoPlay: true,
-              autoPlayCurve: Curves.fastOutSlowIn,
-              enableInfiniteScroll: true,
-              autoPlayAnimationDuration: Duration(milliseconds: 800),
-              viewportFraction: .85,
-              initialPage: context
-                  .read<HomeProvider>()
-                  .activeIndex,
-              onPageChanged: (index, reason) {
-                // Update the active index when the page changes
-                context.read<HomeProvider>().setActiveIndex(index);
-              },
-            ),
-          ),
-          AnimatedSmoothIndicator(
-            activeIndex: context
-                .read<HomeProvider>()
-                .activeIndex,
-            count: value.productPhotoUrls.length,
-            effect: _customizableEffect(),
-            onDotClicked: (index) {
-              // You can implement behavior when a dot is clicked, if desired
-              context.read<HomeProvider>().setActiveIndex(index);
-            },
-          ),
-        ],
-      );
+              alignment: Alignment.bottomCenter,
+              children: [
+                CarouselSlider(
+                  items: [
+                    for (int i = 0; i < value.productPhotoUrls.length; i++)
+                      bannerItem(value.productPhotoUrls[i])
+                  ],
+                  options: CarouselOptions(
+                    height: 210,
+                    enlargeCenterPage: true,
+                    autoPlay: true,
+                    autoPlayCurve: Curves.fastOutSlowIn,
+                    enableInfiniteScroll: true,
+                    autoPlayAnimationDuration: Duration(milliseconds: 800),
+                    viewportFraction: .95,
+                    initialPage: context.read<HomeProvider>().activeIndex,
+                    onPageChanged: (index, reason) {
+                      // Update the active index when the page changes
+                      context.read<HomeProvider>().setActiveIndex(index);
+                    },
+                  ),
+                ),
+                AnimatedSmoothIndicator(
+                  activeIndex: context.read<HomeProvider>().activeIndex,
+                  count: value.productPhotoUrls.length,
+                  effect: _customizableEffect(),
+                  onDotClicked: (index) {
+                    // You can implement behavior when a dot is clicked, if desired
+                    context.read<HomeProvider>().setActiveIndex(index);
+                  },
+                ),
+              ],
+            );
     });
   }
 
-  _newArrivalProducts() {
+  _categorySection() {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _titleText(title: "New Arrival", subTitle: "See all"),
-          SizedBox(height: 10),
-          _saleMobileAdBanner(),
+          titleFont(
+              text: "Shop by category",
+              color: isDarkMode ? white : grayBlack,
+              weight: FontWeight.bold),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _category(image: "t-shirt1", text: "T-Shirt",color: purple,isDarkMode: isDarkMode),
+              _category(image: "pant", text: "Pant",color: green,isDarkMode: isDarkMode),
+              _category(image: "hoodie", text: "Hoodie",color: lightOrange,isDarkMode: isDarkMode)
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  _category({required String image, required String text,required Color color, required bool isDarkMode}) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => SingleCategory(category: text,)));
+      },
+      child: Column(
+        children: [
+          CircleAvatar(
+            backgroundColor: color,
+            radius: 35,
+            backgroundImage: AssetImage("assets/images/$image.png"),
+          ),
+          const SizedBox(height: 5),
+          smallFont(text: "${text}s", color: isDarkMode ? white : grayBlack, weight: FontWeight.bold)
+        ],
+      ),
+    );
+  }
+
+  _newArrivalProducts() {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titleFont(
+              text: 'Recommended Cloths', color: isDarkMode ? white : grayBlack),
           SizedBox(height: 10),
           newArrivalSerumList(currentUser: currentUser),
           SizedBox(height: 10),
@@ -213,34 +261,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  _saleMobileAdBanner() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Image.asset(
-        "assets/images/sales.png",
-        height: 50,
-        width: MediaQuery
-            .of(context)
-            .size
-            .width,
-        fit: BoxFit.fill,
-      ),
-    );
-  }
-
-  _titleText({required String title, required String subTitle}) {
-    final themeProvider = Provider.of<DarkModeProvider>(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        titleFont(
-            text: title, color: themeProvider.isDarkMode ? white : grayBlack),
-        smallFont(text: subTitle, color: Colors.grey)
-      ],
-    );
-  }
-
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<DarkModeProvider>(context);
@@ -248,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
       appBar: _homePageAppbar(currentUser: currentUser),
       body: _homePageBody(),
-      drawer:currentUser != null ? UserProfile() : null,
+      drawer: currentUser != null ? UserProfile() : null,
     );
   }
 }

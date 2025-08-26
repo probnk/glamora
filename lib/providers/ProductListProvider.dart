@@ -8,7 +8,40 @@ class ProductListProvider with ChangeNotifier {
 
   double? _rating;
   double? get rating => _rating;
+  List<ClothingProductModel> _productDetailsList = [];
+  String _selectedGender = 'Man';
+  String _selectedCategory = 'T-Shirt';
+  bool _isLoading = false;
 
+  List<ClothingProductModel> get productDetailsList => _productDetailsList;
+  String get selectedGender => _selectedGender;
+  String get selectedCategory => _selectedCategory;
+  bool get isLoading => _isLoading;
+
+  void setProducts(List<ClothingProductModel> products) {
+    _productDetailsList = products;
+    notifyListeners();
+  }
+
+  void removeProduct(int index) {
+    _productDetailsList.removeAt(index);
+    notifyListeners();
+  }
+
+  void setSelectedGender(String gender) {
+    _selectedGender = gender;
+    notifyListeners();
+  }
+
+  void setSelectedCategory(String category) {
+    _selectedCategory = category;
+    notifyListeners();
+  }
+
+  void setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
   Future<void> fetchClothsList() async {
     QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('Cloths').doc("Man").collection("T-Shirt").get();
@@ -29,3 +62,4 @@ class ProductListProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+

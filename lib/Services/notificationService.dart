@@ -132,46 +132,34 @@ class NotificationService {
 
   // function to show visible notification when app is active
   Future<void> showNotification(RemoteMessage message) async {
-    AndroidNotificationChannel channel = AndroidNotificationChannel(
-      "testingId","channel name",
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
       importance: Importance.max,
-      showBadge: true,
-      playSound: true,
-      // sound: const RawResourceAndroidNotificationSound('jetsons_doorbell'),
+      sound: RawResourceAndroidNotificationSound('money'),
     );
 
-    AndroidNotificationDetails androidNotificationDetails =
-    AndroidNotificationDetails(
-        channel.id.toString(), channel.name.toString(),
-        channelDescription: 'your channel description',
-        importance: Importance.high,
-        priority: Priority.high,
-        playSound: true,
-        ticker: 'ticker',
-        // sound: channel.sound
-        sound: RawResourceAndroidNotificationSound('money'),
-       icon: "ic_stat_icon"
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      channel.id,
+      channel.name,
+      channelDescription: 'Your channel description',
+      importance: Importance.high,
+      priority: Priority.high,
+      sound: channel.sound,
+      icon: '@drawable/ic_stat_icon',
     );
 
-    const DarwinNotificationDetails darwinNotificationDetails =
-    DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
+    final NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: const DarwinNotificationDetails(),
     );
 
-    NotificationDetails notificationDetails = NotificationDetails(
-        android: androidNotificationDetails, iOS: darwinNotificationDetails);
-
-    Future.delayed(Duration.zero, () {
-      _flutterLocalNotificationsPlugin.show(
-        0,
-        message.notification!.title.toString(),
-        message.notification!.body.toString(),
-        notificationDetails,
-        payload: 'my_data',
-      );
-    });
+    await _flutterLocalNotificationsPlugin.show(
+      0,
+      message.notification?.title,
+      message.notification?.body,
+      details,
+    );
   }
 
   Future forgroundMessage() async {

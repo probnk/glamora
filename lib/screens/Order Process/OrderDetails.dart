@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
-import 'package:glamora/Services/notificationService.dart';
+import 'package:glamora/Services/payment_button.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/ColorVariantModel.dart';
 import 'package:glamora/models/SizesVariants.dart';
+import 'package:glamora/models/TackingStatusModel.dart';
 import 'package:glamora/models/productModel.dart';
 import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
@@ -65,7 +65,10 @@ class _OrderDetailsState extends State<OrderDetails> {
         'cartItems': copiedCartItems,
         'paid': false,
         'fulfilled': false,
-        'cancelled': false
+        'cancelled': false,
+        'trackingId': "",
+        'trackingUrl': "",
+        'trackingStatus': [],
       });
 
       // ✅ Step 2: Update the doc with its own ID
@@ -88,6 +91,9 @@ class _OrderDetailsState extends State<OrderDetails> {
         'paid': false,
         'fulfilled': false,
         'status': "unseen",
+        'trackingId': "",
+        'trackingUrl': "",
+        'trackingStatus': [],
       });
       var total = context
           .read<CartProvider>()
@@ -195,9 +201,13 @@ class _OrderDetailsState extends State<OrderDetails> {
                 text: "Payment Method: Cash On Delivery (COD)",
                 color: isDarkMode ? white : grayBlack)),
         Divider(color: isDarkMode ? Colors.grey : Colors.grey.shade300),
+        // Center(
+        //   child: PaymentButton(
+        //     amount: 89.99,
+        //     itemName: 'Premium Winter Jacket',
+        //   ),
+        // ),
         SizedBox(height: 20),
-        _confirmButton(isDarkMode: isDarkMode),
-        SizedBox(height: 20)
       ],
     );
   }
@@ -280,39 +290,51 @@ class _OrderDetailsState extends State<OrderDetails> {
     );
   }
 
-  _confirmButton({required bool isDarkMode}) {
+  _confirmButton(bool isDarkMode) {
     return Consumer<CartProvider>(builder: (context, cartValue, child) {
-      return InkWell(
-        onTap: () {
-          for (int i = 0; i < cartValue.cartItems.length; i++) {
-            _updateStockBySize(
-                productId: cartValue.cartItems[0].id,
-                category: cartValue.cartItems[0].category,
-                gender: cartValue.cartItems[0].gender,
-                size: cartValue.cartItems[0].size,
-                quantity: cartValue.cartItems[0].pieces);
-          }
-          _addOrder();
-        },
-        child: Card(
-          margin: EdgeInsets.symmetric(horizontal: 60),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 3,
-          child: Container(
-              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 60),
+      return Container(
+        height: 70, // give fixed height
+        padding: EdgeInsets.symmetric(vertical: 10),
+        width: double.infinity,
+        color: lightGrayBlack,
+        child: InkWell(
+          onTap: () {
+            for (int i = 0; i < cartValue.cartItems.length; i++) {
+              _updateStockBySize(
+                productId: cartValue.cartItems[i].id,
+                category: cartValue.cartItems[i].category,
+                gender: cartValue.cartItems[i].gender,
+                size: cartValue.cartItems[i].size,
+                quantity: cartValue.cartItems[i].pieces,
+              );
+            }
+            _addOrder();
+          },
+          child: Card(
+            margin: EdgeInsets.symmetric(horizontal: 60),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 3,
+            child: Container(
+              alignment: Alignment.center,
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 60),
               decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: isDarkMode
-                          ? [lightOrange, darkOrange]
-                          : [lightBlack, darkBlack])),
-              child: smallFont(text: "Checkout", color: white)),
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: isDarkMode
+                      ? [lightOrange, darkOrange]
+                      : [lightBlack, darkBlack],
+                ),
+              ),
+              child: smallFont(text: "Checkout", color: white),
+            ),
+          ),
         ),
       );
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +349,7 @@ class _OrderDetailsState extends State<OrderDetails> {
             text: "Order Details",
             color: themeProvider.isDarkMode ? white : grayBlack),
       ),
+      bottomSheet: _confirmButton(themeProvider.isDarkMode),
       backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
       body: _orderDetailsBody(isDarkMode: themeProvider.isDarkMode),
     );
