@@ -14,23 +14,33 @@ import 'package:provider/provider.dart';
 
 
 
-newArrivalSerumList({required var currentUser}) {
-  return Consumer<ProductListProvider>(builder: (context, value, child) {
-    return Container(
-      height: 380,
-      child: ListView.builder(
-          itemCount: value.clothsList.length,
+Widget newArrivalSerumList({required var currentUser}) {
+  return Consumer<ProductListProvider>(
+    builder: (context, value, child) {
+      if (value.isLoading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (value.recommendedCloths.isEmpty) {
+        return const Center(child: Text('No recommended products found'));
+      }
+      return Container(
+        height: 380,
+        child: ListView.builder(
+          itemCount: value.recommendedCloths.length,
           scrollDirection: Axis.horizontal,
           shrinkWrap: true,
           itemBuilder: (context, index) {
             return ProductCard(
-                context: context,
-                index: index,
-                cloth: value.clothsList[index],
-                currentUser: currentUser);
-          }),
-    );
-  });
+              context: context,
+              index: index,
+              cloth: value.recommendedCloths[index], // Use recommendedCloths
+              currentUser: currentUser,
+            );
+          },
+        ),
+      );
+    },
+  );
 }
 
 ProductCard(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
 import 'package:glamora/Services/payment_button.dart';
+import 'package:glamora/Services/personalization_service.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/ColorVariantModel.dart';
@@ -102,6 +103,8 @@ class _OrderDetailsState extends State<OrderDetails> {
 
       // Now clear the cart items after the order is successfully added
       for (int i = 0; i < cartItems.cartItems.length; i++) {
+        if(currentUser != null){
+          trackPersonalization(FirebaseAuth.instance.currentUser!.uid, cartItems.cartItems[i].category, "order");
         cartItems.deleteCartItem(cartItems.cartItems[i]);
       }
       cartItems.cartItems.clear();
@@ -110,6 +113,8 @@ class _OrderDetailsState extends State<OrderDetails> {
           title: "New Order Placed!",
           data: {"screen": "notification"},
           topic: 'Orders');
+
+      }
       // Navigate to the BottomNavBar after the order is completed
       Navigator.pushReplacement(
         context,

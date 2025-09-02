@@ -83,29 +83,34 @@ class _GetStartedState extends State<GetStarted> {
             },
             children: [
               GetStartedDesign(
-                  title: "Illuminate Your Essence",
-                  subTitle:
-                      "Unveil the radiance within you with our luxurious serums. Experience the transformative power of our products that illuminate and rejuvenate your skin. Dive into a world where every drop promises a glow that's simply irresistible. Embrace the journey to flawless beauty with us!",
-                  url: "t-shirt1",
-                  darkColor: green),
+                title: "Wear Your Vibe",
+                subTitle:
+                "Har T-shirt ek kahani hai jo tumhari personality ko express karti hai. Bold designs, soft fabric aur effortless comfort – apni vibe ko duniya ke saamne proudly pehno. Style jo sirf fashion nahi, ek statement hai!",
+                url: "t-shirt1",
+                darkColor: green,
+              ),
               GetStartedDesign(
-                  title: "Timeless Youth Revealed",
-                  subTitle:
-                      "Wave goodbye to those stubborn blemishes and embrace a younger, smoother complexion. Our advanced serums target acne and signs of aging, leaving you with a clearer and more youthful appearance. Discover the secret to timeless beauty and rejuvenate your skin like never before!",
-                  url: "t-shirt2",
-                  darkColor: purple),
+                title: "Everyday Comfort, Endless Style",
+                subTitle:
+                "Chahe tum office jaa rahe ho, friends k saath chill kar rahe ho ya gym – hamari T-shirts tumhe har jagah comfortable aur stylish feel karayengi. Ek wardrobe essential jo har mood aur look ke saath match hoti hai.",
+                url: "t-shirt2",
+                darkColor: purple,
+              ),
               GetStartedDesign(
-                  title: "Pore Perfection",
-                  subTitle:
-                      "Achieve the flawless skin you've always desired with our pore-refining serums. Smooth out imperfections, minimize pores, and reveal a complexion that's not only perfect but also enviably radiant. Transform your skincare routine and enjoy the silky-smooth texture of your revitalized skin!",
-                  url: "t-shirt5",
-                  darkColor: pink),
+                title: "Stand Out from the Crowd",
+                subTitle:
+                "Unique cuts aur trendy colors ke saath, hamari T-shirts tumhe bheed se alag banati hain. Apna look elevate karo aur woh confidence pao jo sirf perfect outfit de sakta hai. Because ordinary is not an option!",
+                url: "t-shirt5",
+                darkColor: pink,
+              ),
               GetStartedDesign(
-                  title: "Exclusive Radiance Awaits",
-                  subTitle:
-                      "Step into a world of exclusive deals and exceptional products tailored just for you. Explore our range and find the perfect match for your skincare needs. From luxurious serums to must-have essentials, seize the opportunity to indulge in the finest skincare solutions designed to elevate your routine.",
-                  url: "t-shirt4",
-                  darkColor: lightOrange),
+                title: "Exclusive Styles, Just for You",
+                subTitle:
+                "Limited edition T-shirts jo tumhari individuality ko highlight karti hain. Apni favorite pick karo aur style game ko next level par le jao. Don’t wait – fashion ka best edition tumhara intizaar kar raha hai!",
+                url: "t-shirt4",
+                darkColor: lightOrange,
+              ),
+
             ],
           ),
           Positioned(

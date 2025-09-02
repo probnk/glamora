@@ -20,6 +20,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _showScrollToBottomButton = false;
 
   @override
   void initState() {
@@ -27,6 +28,24 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AIChatBotProvider>(context, listen: false).initConversation();
     });
+
+    // Listen to scroll changes to show/hide the scroll-to-bottom button
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final isAtBottom = _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 10; // Small threshold
+        setState(() {
+          _showScrollToBottomButton = !isAtBottom;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -42,16 +61,10 @@ class _ChatScreenState extends State<ChatScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: isDarkMode ? purple : lightGrayBlack,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: mediumFont(text: "VCS", weight: FontWeight.bold),
-              ),
+            CircleAvatar(
+              radius: 25,
+              backgroundColor: Colors.transparent,
+              backgroundImage: AssetImage("assets/icons/logo_1.png"),
             ),
             const SizedBox(width: 10),
             Column(
@@ -77,48 +90,65 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: Icon(Icons.search)),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          _buildSearchSuggestions(isDarkMode: isDarkMode),
-          Expanded(
-            child: Consumer<AIChatBotProvider>(
-              builder: (context, provider, child) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom(animated: false);
-                });
-
-                return SingleChildScrollView(
-                  physics: AlwaysScrollableScrollPhysics(),
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount:
-                        provider.messages.length + (provider.isLoading ? 1 : 0),
-                    padding: const EdgeInsets.all(12),
-                    itemBuilder: (context, index) {
-                      if (index < provider.messages.length) {
-                        final message = provider.messages[index];
-                        if (message['type'] == 'products') {
-                          return _ProductResults(
-                              message: message, isDarkMode: isDarkMode);
-                        }
-                        return _ChatBubble(
-                          text: message['text'],
-                          isUser: message['isUser'],
-                          timestamp: message['timestamp'],
-                          isDarkMode: isDarkMode,
-                        );
-                      } else {
-                        return _TypingIndicator(isDarkMode: isDarkMode);
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
+          Column(
+            children: [
+              _buildSearchSuggestions(isDarkMode: isDarkMode),
+              Expanded(
+                child: Consumer<AIChatBotProvider>(
+                  builder: (context, provider, child) {
+                    return SingleChildScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: provider.messages.length +
+                                (provider.isLoading ? 1 : 0),
+                            padding: const EdgeInsets.all(12),
+                            itemBuilder: (context, index) {
+                              if (index < provider.messages.length) {
+                                final message = provider.messages[index];
+                                if (message['type'] == 'products') {
+                                  return _ProductResults(
+                                      message: message, isDarkMode: isDarkMode);
+                                }
+                                return _ChatBubble(
+                                  text: message['text'],
+                                  isUser: message['isUser'],
+                                  timestamp: message['timestamp'],
+                                  isDarkMode: isDarkMode,
+                                );
+                              } else {
+                                return const _TypingIndicator();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              _InputField(controller: _controller, isDarkMode: isDarkMode),
+            ],
           ),
-          _InputField(controller: _controller, isDarkMode: isDarkMode),
+          if (_showScrollToBottomButton)
+            Positioned(
+              bottom: 80, // Above the input field
+              right: 16,
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: isDarkMode ? green : purple,
+                onPressed: () {
+                  _scrollToBottom();
+                },
+                child: Icon(Icons.arrow_downward, color: white),
+              ),
+            ),
         ],
       ),
     );
@@ -127,10 +157,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildSearchSuggestions({required bool isDarkMode}) {
     return Consumer<AIChatBotProvider>(
       builder: (context, provider, child) {
-        if (provider.messages.isNotEmpty) return SizedBox.shrink();
+        if (provider.messages.isNotEmpty) return const SizedBox.shrink();
 
         return Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -138,7 +168,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   text: "Trending Searches",
                   weight: FontWeight.bold,
                   color: isDarkMode ? white : grayBlack),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -152,12 +182,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }).toList(),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               productTitle(
                   text: "Recent Searches",
                   weight: FontWeight.bold,
                   color: isDarkMode ? white : grayBlack),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               if (provider.searchHistory.isEmpty)
                 productTitle(
                     text: "No recent searches",
@@ -193,22 +223,120 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _scrollToBottom({bool animated = true}) {
+  void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      final position = _scrollController.position.maxScrollExtent;
-      if (animated) {
-        _scrollController.animateTo(
-          position,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      } else {
-        _scrollController.jumpTo(position);
-      }
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 }
 
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Container(
+          width: 50,height: 50,
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isDarkMode ? green : Colors.deepOrange,
+            shape: BoxShape.circle
+          ),
+          child: Icon(Icons.smart_toy_outlined,color: white),
+        ),
+        SizedBox(width: 5),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? green.withAlpha(100)
+                : Colors.deepOrange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDarkMode ? green : Colors.deepOrange,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Dot(isDarkMode: isDarkMode, delay: 0),
+              _Dot(isDarkMode: isDarkMode, delay: 200),
+              _Dot(isDarkMode: isDarkMode, delay: 400),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Dot extends StatefulWidget {
+  final bool isDarkMode;
+  final int delay;
+
+  const _Dot({required this.isDarkMode, required this.delay});
+
+  @override
+  _DotState createState() => _DotState();
+}
+
+class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.repeat(reverse: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3.0),
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: widget.isDarkMode ? green : Colors.deepOrange,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Rest of the classes (_SearchFilters, _ChatBubble, _ProductResults, _InputField) remain unchanged
 class _SearchFilters extends StatelessWidget {
   final bool isDarkMode;
 
@@ -223,30 +351,30 @@ class _SearchFilters extends StatelessWidget {
     return Padding(
       padding: MediaQuery.of(context).viewInsets,
       child: Container(
-      color: isDarkMode ? grayBlack : white,
+        color: isDarkMode ? grayBlack : white,
         padding: EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            titleFont(text: "Advanced Search",color: isDarkMode ? white : grayBlack),
+            titleFont(
+                text: "Advanced Search", color: isDarkMode ? white : grayBlack),
             SizedBox(height: 20),
             DropdownButtonFormField<String>(
               value: provider.getFilterGender,
               dropdownColor: isDarkMode ? grayBlack : white,
               borderRadius: BorderRadius.circular(16),
-              style: GoogleFonts.exo2(
-                  color: isDarkMode ? white : Colors.grey),
+              style: GoogleFonts.exo2(color: isDarkMode ? white : Colors.grey),
               decoration: InputDecoration(
                 labelText: "Gender",
                 labelStyle: GoogleFonts.exo2(
                     color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
-                focusedBorder:OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(
                     color: isDarkMode ? white : grayBlack,
                   ),
-                ) ,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(
@@ -257,7 +385,8 @@ class _SearchFilters extends StatelessWidget {
               items: ['Man', 'Woman'].map((gender) {
                 return DropdownMenuItem(
                   value: gender,
-                  child: smallFont(text: gender,color: isDarkMode ? white : lightGrayBlack),
+                  child: smallFont(
+                      text: gender, color: isDarkMode ? white : lightGrayBlack),
                 );
               }).toList(),
               onChanged: (value) => provider.setFilterGender(value),
@@ -267,10 +396,9 @@ class _SearchFilters extends StatelessWidget {
               value: provider.getFilterCategory,
               dropdownColor: isDarkMode ? grayBlack : white,
               borderRadius: BorderRadius.circular(16),
-              style: GoogleFonts.exo2(
-                  color: isDarkMode ? white : Colors.grey),
+              style: GoogleFonts.exo2(color: isDarkMode ? white : Colors.grey),
               decoration: InputDecoration(
-                labelText: "Gender",
+                labelText: "Category",
                 labelStyle: GoogleFonts.exo2(
                     color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
                 focusedBorder: OutlineInputBorder(
@@ -293,7 +421,8 @@ class _SearchFilters extends StatelessWidget {
               ].map((cat) {
                 return DropdownMenuItem(
                   value: cat,
-                  child: smallFont(text: cat,color: isDarkMode ? white : lightGrayBlack),
+                  child: smallFont(
+                      text: cat, color: isDarkMode ? white : lightGrayBlack),
                 );
               }).toList(),
               onChanged: (value) => provider.setFilterCategory(value),
@@ -309,9 +438,10 @@ class _SearchFilters extends StatelessWidget {
                     style: GoogleFonts.exo2(
                         color: isDarkMode ? white : Colors.grey),
                     decoration: InputDecoration(
-                      labelText: "Gender",
+                      labelText: "Colors",
                       labelStyle: GoogleFonts.exo2(
-                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                          color:
+                              isDarkMode ? Colors.grey.shade400 : Colors.grey),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
@@ -341,7 +471,9 @@ class _SearchFilters extends StatelessWidget {
                     ].map((color) {
                       return DropdownMenuItem(
                         value: color,
-                        child: smallFont(text: color,color: isDarkMode ? white : lightGrayBlack),
+                        child: smallFont(
+                            text: color,
+                            color: isDarkMode ? white : lightGrayBlack),
                       );
                     }).toList(),
                     onChanged: (value) => provider.setFilterColorName(value),
@@ -356,9 +488,10 @@ class _SearchFilters extends StatelessWidget {
                     style: GoogleFonts.exo2(
                         color: isDarkMode ? white : Colors.grey),
                     decoration: InputDecoration(
-                      labelText: "Gender",
+                      labelText: "Sizes",
                       labelStyle: GoogleFonts.exo2(
-                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                          color:
+                              isDarkMode ? Colors.grey.shade400 : Colors.grey),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
@@ -375,7 +508,9 @@ class _SearchFilters extends StatelessWidget {
                     items: ['S', 'M', 'L', 'XL'].map((size) {
                       return DropdownMenuItem(
                         value: size,
-                        child: smallFont(text: size,color: isDarkMode ? white : lightGrayBlack),
+                        child: smallFont(
+                            text: size,
+                            color: isDarkMode ? white : lightGrayBlack),
                       );
                     }).toList(),
                     onChanged: (value) => provider.setFilterSize(value),
@@ -387,45 +522,40 @@ class _SearchFilters extends StatelessWidget {
             TextField(
               controller: priceController,
               enabled: true,
-              style:GoogleFonts.exo2(
-                fontSize: 14,
-                  color: isDarkMode ? white : grayBlack) ,
+              style: GoogleFonts.exo2(
+                  fontSize: 14, color: isDarkMode ? white : grayBlack),
               decoration: InputDecoration(
-                hintText: 'Enter the price',
-                hintStyle: GoogleFonts.exo2(
-                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(
-                    color: isDarkMode ? white : grayBlack,
+                  hintText: 'Enter the price',
+                  hintStyle: GoogleFonts.exo2(
+                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: isDarkMode ? white : grayBlack,
+                    ),
                   ),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(
-                    color: Colors.grey,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: Colors.grey,
+                    ),
                   ),
-                ),
-                filled: true,
-                fillColor: isDarkMode ? lightGrayBlack : Colors.grey[100],
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                prefixStyle:GoogleFonts.exo2(color: Colors.grey,fontSize: 14) ,
-                prefixText:"Rs. "
-              ),
+                  filled: true,
+                  fillColor: isDarkMode ? lightGrayBlack : Colors.grey[100],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  prefixStyle:
+                      GoogleFonts.exo2(color: Colors.grey, fontSize: 14),
+                  prefixText: "Rs. "),
               minLines: 1,
               keyboardType: TextInputType.number,
-              autofocus: true,
-              onChanged: (value) {
-                v = v + double.parse(value);
-              },
             ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                provider.setFilterMaxPrice(v);
+                provider.setFilterMaxPrice(double.parse(priceController.text));
                 provider.applyFilters();
                 Navigator.pop(context);
               },
@@ -476,12 +606,12 @@ class _ChatBubble extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isDarkMode
-              ? (isUser ? lightPurple.withAlpha(150) : lightGrayBlack)
+              ? (isUser ? green.withAlpha(100) : lightGrayBlack)
               : (isUser ? lightPurple.withAlpha(80) : Colors.grey.shade100),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isDarkMode
-                ? (isUser ? Colors.deepPurple : Colors.grey.shade100)
+                ? (isUser ? green : Colors.grey.shade100)
                 : (isUser ? Colors.deepPurple : Colors.grey.shade500),
             width: 1,
           ),
@@ -491,11 +621,58 @@ class _ChatBubble extends StatelessWidget {
           children: [
             MarkdownBody(
               data: text,
-              styleSheet: MarkdownStyleSheet(
+              styleSheet:
+                  MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
                 p: GoogleFonts.exo2(
                   fontSize: 14,
                   color: isDarkMode ? white : lightGrayBlack,
                   height: 1.4,
+                ),
+                h1: GoogleFonts.exo2(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                h2: GoogleFonts.exo2(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                h3: GoogleFonts.exo2(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                h4: GoogleFonts.exo2(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                tableHead: GoogleFonts.exo2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                tableBody: GoogleFonts.exo2(
+                  fontSize: 14,
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                blockquote: GoogleFonts.exo2(
+                  fontStyle: FontStyle.italic,
+                  color: isDarkMode ? Colors.grey[300] : grayBlack,
+                ),
+                code: GoogleFonts.robotoMono(
+                  fontSize: 13,
+                  color: isDarkMode ? Colors.orange[200] : Colors.deepPurple,
+                  backgroundColor:
+                      isDarkMode ? grayBlack : Colors.grey.shade100,
+                ),
+                codeblockDecoration: BoxDecoration(
+                  color: isDarkMode ? lightGrayBlack : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                listBullet: GoogleFonts.exo2(
+                  color: isDarkMode ? white : grayBlack,
                 ),
               ),
             ),
@@ -591,98 +768,6 @@ class _ProductResults extends StatelessWidget {
   }
 }
 
-class _TypingIndicator extends StatefulWidget {
-  final bool isDarkMode;
-
-  _TypingIndicator({required this.isDarkMode});
-
-  @override
-  _TypingIndicatorState createState() => _TypingIndicatorState();
-}
-
-class _TypingIndicatorState extends State<_TypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-
-    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        Container(
-          margin: EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                backgroundColor: widget.isDarkMode ? green : Colors.deepOrange,
-                child: Icon(Icons.smart_toy, color: Colors.white),
-              ),
-              SizedBox(width: 12),
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: widget.isDarkMode
-                      ? Colors.green.withAlpha(150)
-                      : Colors.deepOrange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: widget.isDarkMode ? green : Colors.deepOrange,
-                      width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildDot(0, widget.isDarkMode),
-                    _buildDot(1, widget.isDarkMode),
-                    _buildDot(2, widget.isDarkMode),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDot(int index, bool isDarkMode) {
-    return FadeTransition(
-      opacity: _animation,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3.0),
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: isDarkMode ? green : Colors.deepOrange,
-            shape: BoxShape.circle,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final bool isDarkMode;
@@ -712,9 +797,8 @@ class _InputField extends StatelessWidget {
             child: TextField(
               controller: controller,
               enabled: true,
-              style:GoogleFonts.exo2(
-                  fontSize: 14,
-                  color: isDarkMode ? white : grayBlack) ,
+              style: GoogleFonts.exo2(
+                  fontSize: 14, color: isDarkMode ? white : grayBlack),
               decoration: InputDecoration(
                 hintText: 'Ask anything in English or Roman Urdu...',
                 hintStyle: GoogleFonts.exo2(
@@ -742,7 +826,7 @@ class _InputField extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color:grayBlack,
+              color: grayBlack,
               borderRadius: BorderRadius.circular(8),
             ),
             child: IconButton(

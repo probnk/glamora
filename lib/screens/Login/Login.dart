@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
-import 'package:glamora/Google%20Auth%20Services/GoogleAuthServices.dart';
+import 'package:glamora/Google%20Auth%20Services/GoogleAuthService.dart';
 import 'package:glamora/Reuse%20Widgets/guestUser.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
@@ -18,6 +18,9 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
+
+  final auth = GoogleAuthService();
+
   Future<void> setSkip() async {
     final setGuestUser = await SharedPreferences.getInstance();
     await setGuestUser.setBool('skip', true);
@@ -80,17 +83,20 @@ class _LoginState extends State<Login> {
                     borderRadius: BorderRadius.circular(16),
                   )),
               onPressed: () async {
-                final user = await GoogleAuthService().signInWithGoogle();
+                final user = await auth.signInWithGoogle();
                 if (user != null) {
-                  final uid = user.uid;
 
                   // Check in Supabase
                   final response = await Supabase.instance.client
                       .from('personalization')
                       .select()
-                      .eq('uid', uid);
+                      .eq('uid', FirebaseAuth.instance.currentUser!.uid);
 
-                  if (response != null) {
+                  print(
+                      '\n\n\nSupabase response for personalization: $response\n\n\n');
+
+                  // FIXED: Properly check if response is empty
+                  if (response != null && response.isNotEmpty && response != []) {
                     // User already personalized, go to BottomNavBar
                     Navigator.pushReplacement(
                       context,
@@ -106,11 +112,11 @@ class _LoginState extends State<Login> {
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Welcome, ${user.displayName}!')),
+                    SnackBar(content: Text('Welcome, ${FirebaseAuth.instance.currentUser!.displayName}!')),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: smallFont(text: "Login Failed")),
+                    SnackBar(content: Text("Login Failed")),
                   );
                 }
               },
@@ -119,8 +125,7 @@ class _LoginState extends State<Login> {
                 children: [
                   Image.asset("assets/images/google.png",
                       width: 30, height: 30),
-                  SizedBox(width: 8),
-                  smallFont(text: "Google"),
+                  Text("Google", style: TextStyle(color: Colors.white)),
                 ],
               ),
             )),

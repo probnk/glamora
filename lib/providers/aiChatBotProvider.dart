@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:glamora/models/productModel.dart';
-import 'package:sentiment_dart/sentiment_dart.dart';
+// import 'package:sentiment_dart/sentiment_dart.dart';
 
 class AIChatBotProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -606,7 +606,7 @@ class AIChatBotProvider with ChangeNotifier {
 
     _requestCompleter = Completer<void>();
     _addUserMessage(text);
-    final sentiment = Sentiment.analysis(text).score;
+    // final sentiment = Sentiment.analysis(text).score;
     await _saveMessageToRTDB(text, true);
 
     _isLoading = true;

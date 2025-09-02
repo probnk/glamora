@@ -164,7 +164,7 @@ Widget buildProductCard(
                     const SizedBox(width: 4),
                     smallFont(
                         text: "${product.discount}% OFF",
-                        color: Colors.green,
+                        color: isDarkMode ? green : Colors.green,
                         weight: FontWeight.bold)
                   ],
                 ),
@@ -185,11 +185,12 @@ Widget buildProductCard(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     DottedBorder(
-                      color: Colors.green,
-                      strokeWidth: 1,
-                      dashPattern: [4, 2],
-                      borderType: BorderType.RRect,
-                      radius: const Radius.circular(4),
+                      options: RoundedRectDottedBorderOptions(
+                        color: isDarkMode ? green : Colors.green,
+                        strokeWidth: 1,
+                        dashPattern: [4, 2],
+                        radius: const Radius.circular(4),
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
@@ -197,12 +198,11 @@ Widget buildProductCard(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.local_offer,
-                                size: iconSize, color: Colors.green),
+                                size: iconSize, color: isDarkMode ? green : Colors.green),
                             const SizedBox(width: 4),
-                            Text("${product.discount}% Discount",
-                                style: TextStyle(
-                                    color: Colors.green,
-                                    fontSize: screenWidth * 0.032)),
+                            smallFont(
+                                text: "${product.discount}% Discount",
+                                color: isDarkMode ? green : Colors.green),
                           ],
                         ),
                       ),

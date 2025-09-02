@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/Reuse%20Widgets/features.dart';
 import 'package:glamora/Reuse%20Widgets/genderCategoryContainer.dart';
 import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
+import 'package:glamora/Services/personalization_service.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/constants/reponsivness.dart';
@@ -44,6 +46,9 @@ class _ProductDetailsState extends State<ProductDetails> {
   void initState() {
     super.initState();
     currentUser = FirebaseAuth.instance.currentUser;
+    if(currentUser != null){
+      trackPersonalization(currentUser.uid, widget.category, "view");
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -222,6 +227,9 @@ class _ProductDetailsState extends State<ProductDetails> {
                     } else {
                       value.deleteWishListItem(productDetails.id);
                       value.removeWishListItems(productDetails.id);
+                    }
+                    if(currentUser != null){
+                      trackPersonalization(currentUser.uid, widget.category, "wishlist");
                     }
                   },
                   child: Container(
@@ -719,10 +727,12 @@ class _ProductDetailsState extends State<ProductDetails> {
     cartProvider.addProductToCart(cartProduct);
     cartProvider.storeClothsList(cartProduct);
     productDetailsProvider.resetQuantity();
-
-    Navigator.push(
+    if(currentUser != null){
+      trackPersonalization(currentUser.uid, widget.category, "cart");
+    }
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const MyCart()),
+      MaterialPageRoute(builder: (context) =>  BottomNavBar()),
     );
   }
 

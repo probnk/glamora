@@ -58,9 +58,9 @@ class GenderCategoryScreen extends StatelessWidget {
           final compressedImage = await FlutterImageCompress.compressAndGetFile(
             genderProvider.selectedImage!.path,
             '${genderProvider.selectedImage!.path}.compressed.jpg',
-            quality: 85, // Adjust quality (0-100, 85 is a good balance)
-            minWidth: 1024, // Optional: Resize to max 1024px width
-            minHeight: 1024, // Optional: Resize to max 1024px height
+            quality: 85,
+            minWidth: 1024,
+            minHeight: 1024,
           );
 
           if (compressedImage == null) {
@@ -83,6 +83,8 @@ class GenderCategoryScreen extends StatelessWidget {
             SnackBar(content: Text('Error uploading image: $e')),
           );
           print('Error uploading image: $e');
+          loadingProvider.setSubmitLoading(false);
+          return;
         }
       }
 
@@ -90,41 +92,52 @@ class GenderCategoryScreen extends StatelessWidget {
       print('Firebase UID: $uid');
 
       try {
-        final response = await Supabase.instance.client.rpc('set_user_id', params: {'user_id': uid});
-        print('set_user_id response: $response');
-        await Future.delayed(Duration(milliseconds: 100));
-        final userIdCheck = await Supabase.instance.client.rpc('get_user_id', params: {});
-        print('Current app.user_id: $userIdCheck');
+        List<Map<String,dynamic>> _categories = [];
+
+        for(var cat in genderProvider.selectedCategories){
+          _categories.add({"${cat.toString()}": 1});
+        };
+        // Call the Edge Function
+        final response = await Supabase.instance.client.functions.invoke(
+          'upsertPersonalization',
+          body: {
+            'uid': uid,
+            'gender': genderProvider.selectedGender,
+            'categories': _categories,
+            'name': nameController.text.isEmpty
+                ? FirebaseAuth.instance.currentUser!.displayName ?? 'Unknown'
+                : nameController.text,
+            'email': FirebaseAuth.instance.currentUser!.email ?? '',
+            'picture': imageUrl?.isNotEmpty == true
+                ? imageUrl
+                : FirebaseAuth.instance.currentUser!.photoURL,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
+
+        // Check response for errors
+        if (response.status != 200) {
+          throw Exception('Edge Function error: ${response.data['error'] ?? 'Unknown error'}');
+        }
+
+        if (response.data['success'] == true) {
+          genderProvider.clear();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => BottomNavBar()),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Details saved successfully!')),
+          );
+        } else {
+          throw Exception('Unexpected response from Edge Function');
+        }
       } catch (e) {
-        print('Error calling set_user_id: $e');
-        throw e;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving data: $e')),
+        );
+        print('Error saving data: $e');
       }
-
-      print('Attempting to upsert data to personalization table');
-      await Supabase.instance.client.from('personalization').upsert({
-        'uid': uid,
-        'gender': genderProvider.selectedGender,
-        'categories': genderProvider.selectedCategories,
-        'name': nameController.text.isEmpty
-            ? FirebaseAuth.instance.currentUser!.displayName
-            : nameController.text,
-        'email': FirebaseAuth.instance.currentUser!.email,
-        'picture': imageUrl?.isNotEmpty == true
-            ? imageUrl
-            : FirebaseAuth.instance.currentUser!.photoURL,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-
-      genderProvider.clear();
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => BottomNavBar()));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Details saved successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving data: $e')),
-      );
-      print('Error saving data: $e');
     } finally {
       loadingProvider.setSubmitLoading(false);
     }

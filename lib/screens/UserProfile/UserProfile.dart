@@ -4,7 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_switch/flutter_switch.dart';
-import 'package:glamora/Google%20Auth%20Services/GoogleAuthServices.dart';
+import 'package:glamora/Google%20Auth%20Services/GoogleAuthService.dart';
+import 'package:glamora/Google%20Auth%20Services/ServerClientId.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/providers/CartProvider.dart';
@@ -18,7 +19,7 @@ import 'package:glamora/screens/History/History.dart';
 import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/MyCart/MyCart.dart';
 import 'package:glamora/screens/MyWishlist/MyWishlist.dart';
-import 'package:glamora/screens/Track%20Order/OrderListScreen.dart';
+import 'package:glamora/screens/Track%20Order/TrackOrder.dart';
 import 'package:glamora/screens/UserProfile/UserDetails.dart';
 import 'package:line_icons/line_icon.dart';
 import 'package:line_icons/line_icons.dart';
@@ -26,6 +27,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProfile extends StatelessWidget {
+  final auth = GoogleAuthService();
+
   @override
   Widget build(BuildContext context) {
     final User? currentUser = FirebaseAuth.instance.currentUser;
@@ -38,7 +41,7 @@ class UserProfile extends StatelessWidget {
       {
         'title': 'Track Order',
         'icon': Icons.track_changes_rounded,
-        'screen': OrdersScreen()
+        'screen': TrackOrderScreen()
       },
       {'title': 'Cart', 'icon': Icons.card_travel_rounded, 'screen': MyCart()},
       {
@@ -140,10 +143,16 @@ class UserProfile extends StatelessWidget {
                   child: InkWell(
                       onTap: () async {
                         try {
-                          GoogleAuthService().signOut();
-                          final user =
-                              await GoogleAuthService().getCurrentUser();
+                          final uid = FirebaseAuth.instance.currentUser?.uid;
 
+                          await auth.signOut();
+
+                          if (uid != null) {
+                            await FirebaseMessaging.instance
+                                .unsubscribeFromTopic(uid);
+                          }
+
+                          // clear providers...
                           context.read<CartProvider>().cartItems.clear();
                           context
                               .read<HistoryProvider>()
@@ -161,13 +170,12 @@ class UserProfile extends StatelessWidget {
                               .read<WishListProvider>()
                               .wishListProducts
                               .clear();
-                          final currentUser = FirebaseAuth.instance.currentUser;
-                          FirebaseMessaging.instance
-                              .unsubscribeFromTopic(currentUser!.uid);
-                          Navigator.pushReplacement(context,
-                              MaterialPageRoute(builder: (context) => Login()));
+
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => Login()),
+                          );
                         } catch (e) {
-                          // Handle sign-out error
                           print('Error signing out: $e');
                         }
                       },

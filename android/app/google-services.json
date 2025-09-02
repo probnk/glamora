@@ -15,11 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "517719105350-t1i8jdoc0h8428ta5irgjlf2hhf5gbt8.apps.googleusercontent.com",
+          "client_id": "517719105350-a0hi04m8jicugnu40rkpp87radj62kr5.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.glamora",
-            "certificate_hash": "98a7c9c2140840c238854748acabfcc6314cf088"
+            "certificate_hash": "7bbf6b25960819c3e888bc11913a3c250177e553"
           }
         },
         {

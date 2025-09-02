@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final themePreference = await SharedPreferences.getInstance();
     final provider = Provider.of<DarkModeProvider>(context, listen: false);
 
-    final isDarkTheme = themePreference.getBool('isDarkMode') ?? false;
+    final isDarkTheme = themePreference.getBool('isDarkMode') ?? true;
     provider.toggleMode(isDarkTheme);
   }
 

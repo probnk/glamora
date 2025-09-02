@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/models/productModel.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProductListProvider with ChangeNotifier {
   List<ClothingProductModel> _clothsList = [];
   List<ClothingProductModel> get clothsList => _clothsList;
-
+  List<ClothingProductModel> _recommendedCloths = []; // For personalized products
+  List<ClothingProductModel> get recommendedCloths => _recommendedCloths;
   double? _rating;
   double? get rating => _rating;
   List<ClothingProductModel> _productDetailsList = [];
@@ -48,6 +51,82 @@ class ProductListProvider with ChangeNotifier {
     _clothsList =
         querySnapshot.docs.map((doc) => ClothingProductModel.fromSnapshot(doc)).toList();
     // _calculateTotal();
+    notifyListeners();
+  }
+  Future<void> fetchPersonalizedProducts() async {
+    setLoading(true);
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        print('No authenticated user');
+        return;
+      }
+
+      final supabase = Supabase.instance.client;
+      final uid = currentUser.uid;
+
+      // Fetch personalization data from Supabase
+      final response = await supabase
+          .from('personalization')
+          .select('email, categories, gender')
+          .eq('uid', uid)
+          .maybeSingle();
+
+      if (response == null) {
+        print('No personalization data found for user $uid');
+        return;
+      }
+
+      final data = response as Map<String, dynamic>;
+      final String gender = data['gender'] ?? 'Man';
+      final List<dynamic> categoriesJson = data['categories'] ?? [];
+
+      // Parse categories JSON
+      List<Map<String, dynamic>> categories =
+      categoriesJson.cast<Map<String, dynamic>>();
+
+      // Extract and sort categories by weight
+      List<MapEntry<String, int>> categoryWeights = categories.map((catMap) {
+        String category = catMap.keys.first;
+        int weight = catMap[category] as int;
+        return MapEntry(category, weight);
+      }).toList();
+
+      categoryWeights.sort((a, b) => b.value.compareTo(a.value)); // Descending
+
+      // Take top 2 categories (or fewer if less available)
+      List<String> topCategories =
+      categoryWeights.take(2).map((e) => e.key).toList();
+
+      if (topCategories.isEmpty) {
+        print('No categories found for user $uid');
+        return;
+      }
+
+      // Fetch products from Firestore for each top category
+      List<ClothingProductModel> recommendedProducts = [];
+      final firestore = FirebaseFirestore.instance;
+
+      for (String category in topCategories) {
+        final querySnapshot = await firestore
+            .collection('Cloths')
+            .doc(gender)
+            .collection(category)
+            .get();
+        recommendedProducts.addAll(querySnapshot.docs
+            .map((doc) => ClothingProductModel.fromSnapshot(doc)));
+      }
+
+      // Update recommended cloths
+      setRecommendedCloths(recommendedProducts);
+    } catch (e) {
+      print('Error fetching personalized products: $e');
+    } finally {
+      setLoading(false);
+    }
+  }
+  void setRecommendedCloths(List<ClothingProductModel> products) {
+    _recommendedCloths = products;
     notifyListeners();
   }
   void _calculateTotal() {

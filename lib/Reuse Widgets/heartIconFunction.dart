@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glamora/Services/personalization_service.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/models/productModel.dart';
 import 'package:glamora/models/wishListProducts.dart';
@@ -35,6 +36,9 @@ checkAndAddWishlistItems(
         } else {
           value.deleteWishListItem(cloth.id);
           value.removeWishListItems(cloth.id);
+        }
+        if(currentUser != null){
+          trackPersonalization(currentUser.uid, cloth.category, "wishlist");
         }
       },
       icon: Icon(

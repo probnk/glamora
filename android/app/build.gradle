@@ -28,7 +28,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.glamora"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -41,7 +41,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.glamora"
-        minSdk 23
+        minSdkVersion flutter.minSdkVersion
         targetSdk 33   // You can bump to 34 later if needed
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -64,7 +64,9 @@ flutter {
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:33.7.0')
     implementation 'com.android.support:multidex:1.0.3'
+    implementation 'com.google.firebase:firebase-messaging:24.0.3'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    implementation 'com.google.android.gms:play-services-base:18.5.0'
 }
 
 
