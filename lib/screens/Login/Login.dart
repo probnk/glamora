@@ -5,9 +5,8 @@ import 'package:glamora/Reuse%20Widgets/guestUser.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glamora/screens/onBoarding%20Screen/onBoardingScreen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class Login extends StatefulWidget {
@@ -18,12 +17,19 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-
   final auth = GoogleAuthService();
 
-  Future<void> setSkip() async {
-    final setGuestUser = await SharedPreferences.getInstance();
-    await setGuestUser.setBool('skip', true);
+  Future<User?> signInAnonymously() async {
+    try {
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInAnonymously();
+      final User? user = userCredential.user;
+      print('Signed in as ${user?.uid}');
+      return user;
+    } on FirebaseAuthException catch (e) {
+      print('Error signing in anonymously: ${e.message}');
+      return null;
+    }
   }
 
   //Login Page Parent Container
@@ -41,10 +47,34 @@ class _LoginState extends State<Login> {
         loginDesign(),
         guestUserSkipCrossButton(
             label: "SKIP",
-            onPressed: () {
-              setSkip();
-              Navigator.pushReplacement(context,
-                  MaterialPageRoute(builder: (context) => BottomNavBar()));
+            onPressed: () async {
+              var user = await signInAnonymously();
+              if (user != null) {
+                // Check in Supabase
+                final response = await Supabase.instance.client
+                    .from('personalization')
+                    .select()
+                    .eq('uid', FirebaseAuth.instance.currentUser!.uid).maybeSingle();
+
+                print(
+                    '\n\n\nSupabase response for personalization: $response\n\n\n');
+
+                // FIXED: Properly check if response is empty
+                if (response == null) {
+                  // User already personalized, go to BottomNavBar
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => GenderCategoryScreen()),
+                  );
+                } else {
+                  // User has no personalization yet, go to GenderCategoryScreen
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => BottomNavBar()),
+                  );
+                }
+              }
             })
       ],
     );
@@ -85,34 +115,35 @@ class _LoginState extends State<Login> {
               onPressed: () async {
                 final user = await auth.signInWithGoogle();
                 if (user != null) {
-
                   // Check in Supabase
                   final response = await Supabase.instance.client
                       .from('personalization')
                       .select()
-                      .eq('uid', FirebaseAuth.instance.currentUser!.uid);
+                      .eq('uid', FirebaseAuth.instance.currentUser!.uid).maybeSingle();
 
                   print(
                       '\n\n\nSupabase response for personalization: $response\n\n\n');
 
                   // FIXED: Properly check if response is empty
-                  if (response != null && response.isNotEmpty && response != []) {
+                  if (response == null) {
                     // User already personalized, go to BottomNavBar
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => BottomNavBar()),
+                      MaterialPageRoute(builder: (context) => GenderCategoryScreen()),
                     );
                   } else {
                     // User has no personalization yet, go to GenderCategoryScreen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => GenderCategoryScreen()),
+                          builder: (context) => BottomNavBar()),
                     );
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Welcome, ${FirebaseAuth.instance.currentUser!.displayName}!')),
+                    SnackBar(
+                        content: Text(
+                            'Welcome, ${FirebaseAuth.instance.currentUser!.displayName}!')),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(

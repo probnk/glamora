@@ -9,8 +9,10 @@ import 'package:glamora/Reuse Widgets/userDetailsTexfield.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+import '../../providers/UserProvider.dart';
 
 class GenderCategoryScreen extends StatelessWidget {
   GenderCategoryScreen({Key? key}) : super(key: key);
@@ -88,31 +90,45 @@ class GenderCategoryScreen extends StatelessWidget {
         }
       }
 
-      String uid = FirebaseAuth.instance.currentUser!.uid;
-      print('Firebase UID: $uid');
+      User currentUser = FirebaseAuth.instance.currentUser!;
+      print('Firebase UID: ${currentUser.uid}');
 
       try {
-        List<Map<String,dynamic>> _categories = [];
+        List<Map<String, dynamic>> _categories = [];
+        for (var cat in genderProvider.selectedCategories) {
+          _categories.add({cat: 1});
+        }
 
-        for(var cat in genderProvider.selectedCategories){
-          _categories.add({"${cat.toString()}": 1});
-        };
+        // Safely handle email for anonymous users
+        final String userEmail = currentUser.email ?? 'anonymous_${currentUser.uid}@example.com';
+
         // Call the Edge Function
         final response = await Supabase.instance.client.functions.invoke(
           'upsertPersonalization',
           body: {
-            'uid': uid,
+            'uid': currentUser.uid,
             'gender': genderProvider.selectedGender,
             'categories': _categories,
             'name': nameController.text.isEmpty
-                ? FirebaseAuth.instance.currentUser!.displayName ?? 'Unknown'
+                ? currentUser.displayName ?? 'Unknown'
                 : nameController.text,
-            'email': FirebaseAuth.instance.currentUser!.email ?? '',
-            'picture': imageUrl?.isNotEmpty == true
+            'email': userEmail,
+            'picture': imageUrl?.isNotEmpty ?? false
                 ? imageUrl
-                : FirebaseAuth.instance.currentUser!.photoURL,
+                : currentUser.photoURL ?? 'https://www.w3schools.com/w3images/avatar2.png',
             'timestamp': DateTime.now().toIso8601String(),
           },
+        );
+
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.setUser(
+          email: userEmail,
+          name: nameController.text.isEmpty
+              ? currentUser.displayName ?? 'Unknown'
+              : nameController.text,
+          pictureUrl: imageUrl?.isNotEmpty ?? false
+              ? imageUrl!
+              : currentUser.photoURL ?? 'https://www.w3schools.com/w3images/avatar2.png',
         );
 
         // Check response for errors

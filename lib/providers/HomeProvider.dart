@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 
 class HomeProvider with ChangeNotifier {
@@ -11,7 +10,6 @@ class HomeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   List<String> _productPhotoUrls = [];
   bool _isLoading = true;

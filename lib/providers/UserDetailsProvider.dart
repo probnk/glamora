@@ -19,13 +19,13 @@ class UserDetailsProvider with ChangeNotifier {
   // Function to save user details to Firestore
   Future<void> saveUserDetails(UserDetailsModel userDetails) async {
     try {
-      final userEmail = FirebaseAuth.instance.currentUser!.email;
+      final userUid = FirebaseAuth.instance.currentUser!.uid;
 
-      if (userEmail != null) {
+      if (userUid != null) {
         // Get a reference to the Firestore document
         final docRef = FirebaseFirestore.instance
             .collection("UserDetails")
-            .doc(userEmail) // Use email as document ID
+            .doc(userUid) // Use email as document ID
             .collection("Details")
             .doc("details"); // You can specify the document ID if needed
 
@@ -45,13 +45,13 @@ class UserDetailsProvider with ChangeNotifier {
   // Function to fetch user details from Firestore and store them in the provider
   Future<void> fetchUserDetails() async {
     try {
-      final userEmail = FirebaseAuth.instance.currentUser!.email;
+      final userUid = FirebaseAuth.instance.currentUser!.uid;
 
-      if (userEmail != null) {
+      if (userUid != null) {
         // Fetch user data from Firestore
         final docSnapshot = await FirebaseFirestore.instance
             .collection("UserDetails")
-            .doc(userEmail)
+            .doc(userUid)
             .collection("Details")
             .doc("details").get();  // Specify the document ID if needed
 

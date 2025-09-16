@@ -80,7 +80,7 @@ class _OrderDetailsState extends State<OrderDetails> {
 // Save to Firestore under History collection
       await FirebaseFirestore.instance
           .collection("History")
-          .doc(FirebaseAuth.instance.currentUser!.email)
+          .doc(currentUser)
           .collection("orderHistory")
           .doc()
           .set({

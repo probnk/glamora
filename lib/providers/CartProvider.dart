@@ -9,6 +9,8 @@ class CartProvider with ChangeNotifier {
   List<CartProducts> get cartItems => _cartItems ?? [];
   int _totalAmount = 0;
   int get totalAmount => _totalAmount;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
   void addProductToCart(CartProducts product) {
     if (_cartItems.any((item) => item.id == product.id)) {
@@ -43,7 +45,7 @@ class CartProvider with ChangeNotifier {
         final productData = cloths.toMap();
         await FirebaseFirestore.instance
             .collection("Cart")
-            .doc(currentUser!.email.toString())
+            .doc(currentUser.uid)
             .collection("items")
             .doc(cloths.id)
             .set(productData);
@@ -60,6 +62,7 @@ class CartProvider with ChangeNotifier {
 
   Future<void> fetchUserCartFromFirestore() async {
     print("Fetching cart...");
+    _isLoading = true;
 
     final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -69,7 +72,7 @@ class CartProvider with ChangeNotifier {
       try {
         final querySnapshot = await FirebaseFirestore.instance
             .collection('Cart')
-            .doc(currentUser.email)
+            .doc(currentUser.uid)
             .collection('items')
             .get();
 
@@ -80,6 +83,9 @@ class CartProvider with ChangeNotifier {
             .toList();
       } catch (error) {
         print("Error fetching user cart: $error");
+        _isLoading = false;
+      } finally{
+        _isLoading = false;
       }
     } else {
       print("User is guest — loading from local storage");
@@ -99,7 +105,7 @@ class CartProvider with ChangeNotifier {
      try {
        await FirebaseFirestore.instance
            .collection("Cart")
-           .doc(currentUser!.email.toString())
+           .doc(currentUser.uid)
            .collection("items")
            .doc(item.id)
            .delete();

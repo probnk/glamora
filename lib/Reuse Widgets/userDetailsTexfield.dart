@@ -59,6 +59,8 @@ class _UserDetailsTextFieldState extends State<UserDetailsTextField> {
             borderSide: BorderSide(color:Colors.grey, width: 1.5),
           ),
         ),
+        maxLines: 10,
+        minLines: 1,
         maxLength:widget.inputType == "text" ? 100 : widget.inputType == "zip" ? 5 : 11 ,
         keyboardType: widget.inputType == "text"
             ? TextInputType.text

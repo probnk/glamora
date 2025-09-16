@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glamora/Reuse%20Widgets/loadingShimmer.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/HistoryModel.dart';
@@ -48,7 +49,14 @@ class _HistoryState extends State<History> {
     final historyProvider = Provider.of<HistoryProvider>(context);
 
     if (historyProvider.isLoading) {
-      return _buildLoadingIndicator();
+      return ListView.builder(
+        shrinkWrap: true,
+        itemCount: 7, // Just an arbitrary number for shimmer effect items
+        itemBuilder: (context, index) {
+          return historyOrderShimmer(
+              isDarkMode: isDarkMode, context: context);
+        },
+      );
     }
 
     return historyProvider.historyModelList.isEmpty
@@ -60,13 +68,6 @@ class _HistoryState extends State<History> {
     return Center(
       child: Icon(Icons.history, size: 80, color: Colors.grey),
     );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Center(
-        child: CircularProgressIndicator(
-          color: Colors.grey.shade300,
-        ));
   }
 
   Widget _buildHistoryList(HistoryProvider historyProvider, bool isDarkMode) {

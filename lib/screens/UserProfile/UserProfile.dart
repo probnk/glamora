@@ -5,15 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:glamora/Google%20Auth%20Services/GoogleAuthService.dart';
-import 'package:glamora/Google%20Auth%20Services/ServerClientId.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/HistoryProvider.dart';
-import 'package:glamora/providers/NotificationDetailsProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
+import 'package:glamora/providers/UserProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/screens/History/History.dart';
 import 'package:glamora/screens/Login/Login.dart';
@@ -28,9 +27,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProfile extends StatelessWidget {
   final auth = GoogleAuthService();
-
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
     final User? currentUser = FirebaseAuth.instance.currentUser;
     List _options = [
       {
@@ -88,14 +87,13 @@ class UserProfile extends StatelessWidget {
                             backgroundColor: Colors.transparent,
                             backgroundImage: user.photoURL != null
                                 ? NetworkImage(user.photoURL!)
-                                : AssetImage('assets/default_avatar.png')
-                                    as ImageProvider,
+                                : NetworkImage(userProvider.pictureUrl),
                           ),
                           accountEmail: smallFont(
-                              text: user.email ?? 'Email not available',
+                              text: user.email ?? "anonymous",
                               color: white),
                           accountName: smallFont(
-                              text: user.displayName ?? 'Name not available',
+                              text: user.displayName ?? userProvider.name,
                               color: white),
                           decoration: BoxDecoration(
                             color: Colors
@@ -157,10 +155,6 @@ class UserProfile extends StatelessWidget {
                           context
                               .read<HistoryProvider>()
                               .historyModelList
-                              .clear();
-                          context
-                              .read<NotificationDetailsProvider>()
-                              .notificationDetails
                               .clear();
                           context.read<RatingProvider>().ratingList.clear();
                           context

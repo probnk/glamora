@@ -1,23 +1,54 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:glamora/providers/UserProvider.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/onBoarding%20Screen/onBoardingScreen.dart';
 
-class MainPage extends StatelessWidget {
-  final bool isGuestUser;
+class MainPage extends StatefulWidget {
+  const MainPage({super.key});
 
-  MainPage({super.key, required this.isGuestUser});
+  @override
+  State<MainPage> createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  Future<bool>? _personalizationFuture;
 
   Future<bool> _doesUserHavePersonalization(String uid) async {
     final response = await supabase.Supabase.instance.client
         .from('personalization')
-        .select()
-        .eq('uid', fb_auth.FirebaseAuth.instance.currentUser!.uid);
+        .select('email, name, picture')
+        .eq('uid', uid)
+        .maybeSingle(); // only get one result
 
     print('\n\n\nSupabase response for personalization: ${response}\n\n\n');
-    return response.isNotEmpty; // Check if response is not null (indicates a row exists)
+
+    if (response != null) {
+      // set user once, outside of build
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      userProvider.setUser(
+        email: response['email'] ?? '',
+        name: response['name'] ?? '',
+        pictureUrl: response['picture'] ?? '',
+      );
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    final currentUser = fb_auth.FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      _personalizationFuture = _doesUserHavePersonalization(currentUser.uid);
+    }
   }
 
   @override
@@ -28,19 +59,15 @@ class MainPage extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.active) {
             if (snapshot.hasData && snapshot.data != null) {
-              String uid = snapshot.data!.uid;
-              print('Firebase UID: $uid'); // Add this line
               return FutureBuilder<bool>(
-                future: _doesUserHavePersonalization(uid),
+                future: _personalizationFuture,
                 builder: (context, personalizationSnapshot) {
-                  if (personalizationSnapshot.connectionState ==
-                      ConnectionState.waiting) {
+                  if (personalizationSnapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
 
                   if (personalizationSnapshot.hasError) {
-                    return Center(
-                        child: Text('Error: ${personalizationSnapshot.error}'));
+                    return Center(child: Text('Error: ${personalizationSnapshot.error}'));
                   }
 
                   if (personalizationSnapshot.data == true) {
@@ -51,9 +78,6 @@ class MainPage extends StatelessWidget {
                 },
               );
             } else {
-              if (isGuestUser) {
-                return BottomNavBar();
-              }
               return Login();
             }
           } else {

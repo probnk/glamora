@@ -31,7 +31,7 @@ class HistoryProvider with ChangeNotifier {
     try {
       var querySnapshot = await FirebaseFirestore.instance
           .collection("History")
-          .doc(FirebaseAuth.instance.currentUser!.email)
+          .doc(FirebaseAuth.instance.currentUser!.uid)
           .collection("orderHistory")
           .get();
 

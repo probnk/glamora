@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:glamora/models/productModel.dart';
-// import 'package:sentiment_dart/sentiment_dart.dart';
 
 class AIChatBotProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

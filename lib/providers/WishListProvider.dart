@@ -7,64 +7,78 @@ import '../Guest Local Storage/WishlistLocalStorage.dart';
 class WishListProvider with ChangeNotifier {
   List<WishlistProducts> _wishListProducts = [];
   List<WishlistProducts> get wishListProducts => _wishListProducts;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
   // Fetch wishlist items from Firestore or Local Storage
   Future<void> fetchClothsList() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      // Fetch from Firestore if user is logged in
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('WishList')
-          .doc("${FirebaseAuth.instance.currentUser!.email}")
-          .collection('Cloths')
-          .get();
+    try{
+      final currentUser = FirebaseAuth.instance.currentUser;
+      _isLoading = true;
+      if (currentUser != null) {
+        // Fetch from Firestore if user is logged in
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('WishList')
+            .doc("${FirebaseAuth.instance.currentUser!.uid}")
+            .collection('Cloths')
+            .get();
 
-      _wishListProducts = querySnapshot.docs.map((doc) {
-        return WishlistProducts.fromSnapshot(doc);
-      }).toList();
-    } else {
-      // Fetch from local storage if the user is not logged in
-      List<WishlistProducts> localWishList =
-      await WishlistLocalStorageService().loadWishlistFromLocal();
-      _wishListProducts = localWishList;
+        _wishListProducts = querySnapshot.docs.map((doc) {
+          return WishlistProducts.fromSnapshot(doc);
+        }).toList();
+      } else {
+        // Fetch from local storage if the user is not logged in
+        List<WishlistProducts> localWishList =
+        await WishlistLocalStorageService().loadWishlistFromLocal();
+        _wishListProducts = localWishList;
+      }
+
+      // Deduplicate the list just in case
+      _wishListProducts = {
+        for (var item in _wishListProducts) item.id: item
+      }.values.toList();
+      _isLoading = false;
+    }catch(e){
+      print("Wishlist Fetch Error:$e");
+      _isLoading = false;
+    }finally{
+      _isLoading = false;
     }
-
-    // Deduplicate the list just in case
-    _wishListProducts = {
-      for (var item in _wishListProducts) item.id: item
-    }.values.toList();
 
     notifyListeners();
   }
 
   // Store wishlist item in Firestore or Local Storage
   Future<void> storeClothsList(WishlistProducts cloths) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      // Store in Firestore if user is logged in
-      try {
-        await FirebaseFirestore.instance
-            .collection("WishList")
-            .doc(FirebaseAuth.instance.currentUser!.email)
-            .collection("Cloths")
-            .doc(cloths.id)
-            .set(cloths.toMap());
-        print("Uploaded to Firestore");
-      } catch (e) {
-        print("Error uploading to Firestore: $e");
-      }
-    } else {
-      // Check if the item already exists before storing
-      final exists =
-      _wishListProducts.any((element) => element.id == cloths.id);
-      if (!exists) {
-        _wishListProducts.add(cloths);
-      }
+    try{
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Store in Firestore if user is logged in
+        try {
+          await FirebaseFirestore.instance
+              .collection("WishList")
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .collection("Cloths")
+              .doc(cloths.id)
+              .set(cloths.toMap());
+          print("Uploaded to Firestore");
+        } catch (e) {
+          print("Error uploading to Firestore: $e");
+        }
+      } else {
+        // Check if the item already exists before storing
+        final exists =
+        _wishListProducts.any((element) => element.id == cloths.id);
+        if (!exists) {
+          _wishListProducts.add(cloths);
+        }
 
-      await WishlistLocalStorageService()
-          .saveWishlistToLocal(_wishListProducts);
+        await WishlistLocalStorageService()
+            .saveWishlistToLocal(_wishListProducts);
+      }
+    }catch(e){
+      print("Storing Wishlist Error: $e");
     }
-
     notifyListeners();
   }
 
@@ -76,7 +90,7 @@ class WishListProvider with ChangeNotifier {
       try {
         await FirebaseFirestore.instance
             .collection("WishList")
-            .doc(FirebaseAuth.instance.currentUser!.email)
+            .doc(FirebaseAuth.instance.currentUser!.uid)
             .collection("Cloths")
             .doc(id)
             .delete();

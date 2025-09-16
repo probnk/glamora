@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/features.dart';
 import 'package:glamora/Reuse%20Widgets/heartIconFunction.dart';
+import 'package:glamora/Reuse%20Widgets/imagesFunctionCall.dart';
 import 'package:glamora/Reuse%20Widgets/ratingCalculations.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
@@ -60,16 +61,11 @@ Widget buildProductCard(
           /// LEFT IMAGE SECTION
           Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(6), topRight: Radius.circular(6)),
-                child: Image.network(
-                  product.images[0],
+              networkImagesCache(
+                  url: product.images[0],
                   width: imageWidth,
                   height: imageHeight,
-                  fit: BoxFit.cover,
-                ),
-              ),
+                  fit: BoxFit.cover),
               Column(
                 children: [
                   Container(
@@ -198,7 +194,8 @@ Widget buildProductCard(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.local_offer,
-                                size: iconSize, color: isDarkMode ? green : Colors.green),
+                                size: iconSize,
+                                color: isDarkMode ? green : Colors.green),
                             const SizedBox(width: 4),
                             smallFont(
                                 text: "${product.discount}% Discount",

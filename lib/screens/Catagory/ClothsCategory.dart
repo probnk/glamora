@@ -8,6 +8,8 @@ import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../Reuse Widgets/loadingShimmer.dart';
+
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({Key? key}) : super(key: key);
 
@@ -43,7 +45,13 @@ class _ProductsScreenState extends State<ProductsScreen>
     return Consumer<ProductListProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            itemCount: 3, // Just an arbitrary number for shimmer effect items
+            itemBuilder: (context, index) {
+              return categoryProductCardShimmer(
+                  isDarkMode: isDarkMode, context: context);
+            },
+          );
         }
         if (provider.productDetailsList.isEmpty) {
           return buildEmptyState(isDarkMode: isDarkMode, context: context);

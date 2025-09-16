@@ -23,11 +23,10 @@ class _SplashScreenState extends State<SplashScreen> {
     Timer(Duration(seconds: 2), () async {
       final sharedPreference = await SharedPreferences.getInstance();
       final _isGetStarted = sharedPreference.getBool('isGetStarted') ?? false;
-      final _isGuestUser = sharedPreference.getBool('skip') ?? false;
       if (_isGetStarted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MainPage(isGuestUser: _isGuestUser)),
+          MaterialPageRoute(builder: (context) => MainPage()),
         );
       } else {
         Navigator.pushReplacement(

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/categoryCloths.dart';
+import 'package:glamora/Reuse%20Widgets/loadingShimmer.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:provider/provider.dart';
+
+import '../../constants/reponsivness.dart';
 
 class SingleCategory extends StatefulWidget {
   final String? category;
@@ -39,10 +42,17 @@ class _SingleCategoryState extends State<SingleCategory> {
   }
 
   Widget _clothList({required bool isDarkMode}) {
+    final height = getResponsiveHeight(100);
     return Consumer<ProductListProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            itemCount: 3, // Just an arbitrary number for shimmer effect items
+            itemBuilder: (context, index) {
+              return categoryProductCardShimmer(
+                  isDarkMode: isDarkMode, context: context);
+            },
+          );
         }
         if (provider.productDetailsList.isEmpty) {
           return buildEmptyState(isDarkMode: isDarkMode, context: context);
@@ -88,8 +98,8 @@ class _SingleCategoryState extends State<SingleCategory> {
                 const SizedBox(width: 10),
                 widget.gender != null
                     ? mediumFont(
-                    text: widget.gender!,
-                    color: isDarkMode ? white : grayBlack)
+                        text: widget.gender!,
+                        color: isDarkMode ? white : grayBlack)
                     : buildGenderDropdown(isDarkMode: isDarkMode),
               ],
             ),

@@ -1,12 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ChatUser {
   final String uid;
   final String name;
   final String email;
   final String photoUrl;
   final String chatDbUrl;
-  final String createdAt;
-  final bool isOnline;
-  final String lastSeen;
+  final DateTime createdAt;
 
   const ChatUser({
     required this.uid,
@@ -15,9 +15,30 @@ class ChatUser {
     required this.photoUrl,
     required this.chatDbUrl,
     required this.createdAt,
-    required this.isOnline,
-    required this.lastSeen,
   });
+
+  factory ChatUser.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    // Handle Timestamp to DateTime conversion
+    DateTime parseFirestoreDate(dynamic date) {
+      if (date is Timestamp) {
+        return date.toDate();
+      } else if (date is String) {
+        return DateTime.parse(date);
+      }
+      return DateTime.now();
+    }
+
+    return ChatUser(
+      uid: doc.id,
+      name: data['name'] ?? 'Unknown',
+      email: data['email'] ?? '',
+      photoUrl: data['photoUrl'] ?? '',
+      chatDbUrl: data['chatDbUrl'] ?? '',
+      createdAt: parseFirestoreDate(data['createdAt']),
+    );
+  }
 
   factory ChatUser.fromMap(Map<String, dynamic> map) {
     return ChatUser(
@@ -27,8 +48,6 @@ class ChatUser {
       photoUrl: map['photoUrl'],
       chatDbUrl: map['chatDbUrl'],
       createdAt: map['createdAt'],
-      isOnline: map['isOnline'] ?? false,
-      lastSeen: map['lastSeen'] ?? DateTime.now().toIso8601String(),
     );
   }
 
@@ -40,8 +59,6 @@ class ChatUser {
       'photoUrl': photoUrl,
       'chatDbUrl': chatDbUrl,
       'createdAt': createdAt,
-      'isOnline': isOnline,
-      'lastSeen': lastSeen,
     };
   }
 }

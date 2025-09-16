@@ -19,6 +19,7 @@ Widget smallFont({
   TextAlign align = TextAlign.center,
   double maxWidth = double.infinity,
   bool isDiscounted = false,
+  int? maxLine = 6,
   TextOverflow overflow = TextOverflow.visible,
 }) {
   final fontSize = getResponsiveFontSize(13.5);
@@ -32,6 +33,7 @@ Widget smallFont({
         fontWeight: weight,
         decoration: isDiscounted ? TextDecoration.lineThrough : null,
       ),
+      maxLines: maxLine,
       textAlign: align,
       overflow: overflow,
     ),
@@ -46,6 +48,7 @@ Widget mediumFont({
   TextAlign align = TextAlign.center,
   double maxWidth = 120,
   bool isDiscounted = false,
+  int maxLine = 1,
   TextOverflow overflow = TextOverflow.visible,
 }) {
   final fontSize = getResponsiveFontSize(15.5);
@@ -59,6 +62,7 @@ Widget mediumFont({
         fontWeight: weight,
         decoration: isDiscounted ? TextDecoration.lineThrough : null,
       ),
+      maxLines: maxLine,
       textAlign: align,
       overflow: overflow,
     ),

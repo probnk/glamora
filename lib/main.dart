@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -9,17 +10,18 @@ import 'package:glamora/providers/ChatProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/HistoryProvider.dart';
 import 'package:glamora/providers/HomeProvider.dart';
-import 'package:glamora/providers/NotificationDetailsProvider.dart';
 import 'package:glamora/providers/ProductDetailsProvider.dart';
 import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/ReviewProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
+import 'package:glamora/providers/UserProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/providers/aiChatBotProvider.dart';
 import 'package:glamora/providers/onBoardingProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'Services/OnlineStatusHandlerService.dart';
 import 'screens/Splash Screen/SplashScreen.dart';
 
 @pragma('vm:entry-point')
@@ -32,6 +34,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  setupCustomerOnlineStatus(); // Call here
 // Load environment variables
   await dotenv.load(fileName: "assets/.env");
 
@@ -46,6 +49,10 @@ void main() async {
     DeviceOrientation.portraitUp
   ]);
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
   runApp(MyApp());
 }
 
@@ -60,14 +67,15 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => CartProvider()),
           ChangeNotifierProvider(create: (context) => WishListProvider()),
           ChangeNotifierProvider(create: (context) => UserDetailsProvider()),
-          ChangeNotifierProvider(create: (context) => NotificationDetailsProvider()),
           ChangeNotifierProvider(create: (context) => HistoryProvider()),
           ChangeNotifierProvider(create: (context) => RatingProvider()),
+          ChangeNotifierProvider(create: (context) => UserProvider()),
           ChangeNotifierProvider(create: (context) => DarkModeProvider()),
           ChangeNotifierProvider(create: (context) => ProductListProvider()),
           ChangeNotifierProvider(create: (context) => ReviewProvider()),
           ChangeNotifierProvider(create: (context) => GenderCategoryProvider()),
           ChangeNotifierProvider(create: (context) => ChatProvider()),
+          ChangeNotifierProvider(create: (context) => InputProvider()),
           ChangeNotifierProvider(create: (context) => AIChatBotProvider()),
         ],
         child: MaterialApp(

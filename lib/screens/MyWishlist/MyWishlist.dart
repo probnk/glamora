@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
+import 'package:glamora/Reuse%20Widgets/loadingShimmer.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
@@ -35,7 +36,16 @@ class _MyWishlistState extends State<MyWishlist> {
 
   _wishListBody({required bool isDarkMode}) {
     return Consumer<WishListProvider>(builder: (context, value, child) {
-      if (value.wishListProducts.isEmpty)
+      if (value.isLoading) {
+        return ListView.builder(
+          itemCount: 6, // Just an arbitrary number for shimmer effect items
+          itemBuilder: (context, index) {
+            return cartClothCardShimmer(
+                isDarkMode: isDarkMode, context: context);
+          },
+        );
+      }
+      else if (value.wishListProducts.isEmpty)
         return Center(
             child: Icon(
               Icons.search_off_rounded,

@@ -4,23 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/ProductCard.dart';
+import 'package:glamora/Reuse%20Widgets/loadingShimmer.dart';
 import 'package:glamora/constants/colors.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glamora/constants/fonts.dart';
-import 'package:glamora/providers/CartProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
-import 'package:glamora/providers/HistoryProvider.dart';
 import 'package:glamora/providers/HomeProvider.dart';
-import 'package:glamora/providers/NotificationDetailsProvider.dart';
 import 'package:glamora/providers/ProductListProvider.dart';
-import 'package:glamora/providers/RatingProvider.dart';
-import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
-import 'package:glamora/screens/Login/Login.dart';
 import 'package:glamora/screens/SupportingChat.dart';
 import 'package:glamora/screens/UserProfile/UserProfile.dart';
 import 'package:glamora/screens/home/singleCategory.dart';
-import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../Services/notificationService.dart';
@@ -75,73 +68,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> setSkipFalse() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("skip", false);
-  }
-
-  _commonActionButton({
-    required bool isDarkMode,
-    required IconData icon,
-    required Function() onPressed,
-  }) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-      child: IconButton(onPressed: onPressed, icon: Icon(icon)),
-    );
-  }
-
   _homePageAppbar({required var currentUser}) {
     final themeProvider = Provider.of<DarkModeProvider>(context);
     return AppBar(
-      backgroundColor: themeProvider.isDarkMode ? lightGrayBlack : white,
-      centerTitle: true,
-      iconTheme: IconThemeData(
-        color: themeProvider.isDarkMode ? white : lightGrayBlack,
-      ),
-      title: headingFont(
-        text: "Vision Cart",
-        color: themeProvider.isDarkMode ? white : lightGrayBlack,
-      ),
-      actions: currentUser != null
-          ? [
-        _commonActionButton(
-          isDarkMode: themeProvider.isDarkMode,
-          icon: IconlyBold.message,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SupportHomeScreen()),
-            );
-          },
-        )
-      ]
-          : [
-        _commonActionButton(
-          isDarkMode: themeProvider.isDarkMode,
-          icon: IconlyLight.logout,
-          onPressed: () {
-            context.read<CartProvider>().cartItems.clear();
-            context.read<HistoryProvider>().historyModelList.clear();
-            context
-                .read<NotificationDetailsProvider>()
-                .notificationDetails
-                .clear();
-            context.read<RatingProvider>().ratingList.clear();
-            context.read<UserDetailsProvider>().clearUserDetails();
-            context.read<WishListProvider>().wishListProducts.clear();
-            setSkipFalse();
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const Login()),
-            );
-          },
-        )
-      ],
-    );
+        backgroundColor: themeProvider.isDarkMode ? lightGrayBlack : white,
+        centerTitle: true,
+        iconTheme: IconThemeData(
+          color: themeProvider.isDarkMode ? white : lightGrayBlack,
+        ),
+        title: headingFont(
+          text: "Vision Cart",
+          color: themeProvider.isDarkMode ? white : lightGrayBlack,
+        ),
+        actions: [
+          Card(
+            elevation: 3,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            color: themeProvider.isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            child: IconButton(onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => SupportHomeScreen()));
+            }, icon: Icon(Icons.message)),
+          )
+        ]);
   }
 
   _homePageBody() {
@@ -157,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget bannerItem(String image) {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
     return Column(
       children: [
         const SizedBox(height: 10),
@@ -167,9 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 165,
             width: double.infinity,
             fit: BoxFit.fill,
-            placeholder: (context, url) => const Center(
-              child: CircularProgressIndicator(color: white),
-            ),
+            placeholder: (context, url) => reusableShimmerContainer(
+                context: context, isDarkMode: isDarkMode, height: 150),
             errorWidget: (context, url, error) => const Center(
               child: Icon(Icons.error, color: darkRed),
             ),
@@ -180,41 +130,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   _bannerCarousel() {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
     return Consumer<HomeProvider>(builder: (context, value, child) {
       return value.productPhotoUrls.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: grayBlack))
+          ? reusableShimmerContainer(
+              context: context, isDarkMode: isDarkMode, height: 150)
           : Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          CarouselSlider(
-            items: [
-              for (int i = 0; i < value.productPhotoUrls.length; i++)
-                bannerItem(value.productPhotoUrls[i])
-            ],
-            options: CarouselOptions(
-              height: 210,
-              enlargeCenterPage: true,
-              autoPlay: true,
-              autoPlayCurve: Curves.fastOutSlowIn,
-              enableInfiniteScroll: true,
-              autoPlayAnimationDuration: const Duration(milliseconds: 800),
-              viewportFraction: 0.95,
-              initialPage: context.read<HomeProvider>().activeIndex,
-              onPageChanged: (index, reason) {
-                context.read<HomeProvider>().setActiveIndex(index);
-              },
-            ),
-          ),
-          AnimatedSmoothIndicator(
-            activeIndex: context.read<HomeProvider>().activeIndex,
-            count: value.productPhotoUrls.length,
-            effect: _customizableEffect(),
-            onDotClicked: (index) {
-              context.read<HomeProvider>().setActiveIndex(index);
-            },
-          ),
-        ],
-      );
+              alignment: Alignment.bottomCenter,
+              children: [
+                CarouselSlider(
+                  items: [
+                    for (int i = 0; i < value.productPhotoUrls.length; i++)
+                      bannerItem(value.productPhotoUrls[i])
+                  ],
+                  options: CarouselOptions(
+                    height: 210,
+                    enlargeCenterPage: true,
+                    autoPlay: true,
+                    autoPlayCurve: Curves.fastOutSlowIn,
+                    enableInfiniteScroll: true,
+                    autoPlayAnimationDuration:
+                        const Duration(milliseconds: 800),
+                    viewportFraction: 0.95,
+                    initialPage: context.read<HomeProvider>().activeIndex,
+                    onPageChanged: (index, reason) {
+                      context.read<HomeProvider>().setActiveIndex(index);
+                    },
+                  ),
+                ),
+                AnimatedSmoothIndicator(
+                  activeIndex: context.read<HomeProvider>().activeIndex,
+                  count: value.productPhotoUrls.length,
+                  effect: _customizableEffect(),
+                  onDotClicked: (index) {
+                    context.read<HomeProvider>().setActiveIndex(index);
+                  },
+                ),
+              ],
+            );
     });
   }
 
@@ -304,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: isDarkMode ? white : grayBlack,
           ),
           const SizedBox(height: 10),
-          newArrivalSerumList(currentUser: currentUser),
+          newArrivalSerumList(currentUser: currentUser, isDarkMode: isDarkMode),
           const SizedBox(height: 10),
         ],
       ),

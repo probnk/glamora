@@ -11,6 +11,8 @@ import 'package:glamora/screens/Order%20Process/OrderDetails.dart';
 import 'package:glamora/screens/UserProfile/UserDetails.dart';
 import 'package:provider/provider.dart';
 
+import '../../Reuse Widgets/loadingShimmer.dart';
+
 class MyCart extends StatefulWidget {
   const MyCart({super.key});
 
@@ -51,7 +53,16 @@ class _MyCartState extends State<MyCart> {
         int total = 0;
         for (int i = 0; i < value.cartItems.length; i++)
           total += int.parse(value.cartItems[i].total);
-        if (value.cartItems.isEmpty)
+        if (value.isLoading) {
+          return ListView.builder(
+            itemCount: 6, // Just an arbitrary number for shimmer effect items
+            itemBuilder: (context, index) {
+              return cartClothCardShimmer(
+                  isDarkMode: isDarkMode, context: context);
+            },
+          );
+        }
+        else if (value.cartItems.isEmpty)
           return Center(
               child: Icon(
             Icons.remove_shopping_cart_rounded,
