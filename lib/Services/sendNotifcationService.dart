@@ -5,49 +5,56 @@ import 'package:glamora/Services/getServerKey.dart';
 import 'package:http/http.dart' as http;
 
 class SendNotificationService {
-  static Future<void> sendNotificationUsingApi(
-      {required String? title,
-      required String? body,
-      required Map<String, dynamic>? data,
-      required String topic}) async {
+  static Future<void> sendNotificationUsingApi({
+    required String? title,
+    required String? body,
+    required Map<String, dynamic>? data,
+    required String topic,
+  }) async {
     String serverKey = await GetServerKey().getServerKeyToken();
-    String url =
+
+    const String url =
         "https://fcm.googleapis.com/v1/projects/glamora-c4094/messages:send";
 
-    var headers = <String, String>{
+    final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $serverKey',
     };
 
-    //mesaage
-    Map<String, dynamic> message = {
+    final message = {
       "message": {
         "notification": {
-          "body": body,
           "title": title,
+          "body": body,
+        },
+        "data": {
+          "chat_id": data?['chat_id'] ?? topic,
+          "sender": data?['sender'] ?? "Unknown",
+          "chat_name": data?['chat_name'] ?? title ?? "Chat",
+          "body": body ?? "",
         },
         "android": {
           "notification": {
             "sound": "money",
             "icon": "@drawable/ic_stat_icon",
-            "channel_id": "high_importance_channel"
+            "channel_id": "chat_channel"
           }
         },
         "topic": topic
       }
     };
 
-    //hit api
-    final http.Response response = await http.post(
+    final response = await http.post(
       Uri.parse(url),
       headers: headers,
       body: jsonEncode(message),
     );
 
     if (response.statusCode == 200) {
-      print("Notification Send Successfully!");
+      print("✅ Notification sent successfully!");
     } else {
-      print("Notification not send!");
+      print("❌ Failed to send notification!");
+      print("Response: ${response.body}");
     }
   }
 }

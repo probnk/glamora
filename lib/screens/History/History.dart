@@ -104,8 +104,8 @@ class _HistoryState extends State<History> {
               ? darkGreen.withAlpha(150)
               : lightGrayBlack)
               : (value.selectedOrderHistory == index
-              ? Colors.grey.shade50
-              : grayBlack),
+              ? Color(0xFFF0F8FF)
+              : white),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

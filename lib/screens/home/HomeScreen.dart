@@ -17,6 +17,8 @@ import 'package:glamora/screens/home/singleCategory.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../Services/notificationService.dart';
+import '../../constants/reponsivness.dart';
+import 'SearchingScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,6 +51,49 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductListProvider>().fetchPersonalizedProducts();
     });
+  }
+
+  Widget buildSearchBarContainer(BuildContext context) {
+    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
+    final screenWidth = getResponsiveWidth(MediaQuery.of(context).size.width);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SearchScreen()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search,
+                color: isDarkMode ? white : grayBlack, size: screenWidth * 0.05),
+            const SizedBox(width: 8),
+            Text(
+              'Search products...',
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey.shade400 : Colors.grey,
+                fontSize: screenWidth * 0.04,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   _customizableEffect() {
@@ -99,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       shrinkWrap: true,
       physics: const ScrollPhysics(),
       children: [
+        buildSearchBarContainer(context),
         _bannerCarousel(),
         _categorySection(),
         _newArrivalProducts(),

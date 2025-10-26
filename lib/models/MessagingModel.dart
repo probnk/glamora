@@ -3,14 +3,13 @@ class MessageModel {
   final String message;
   final String time;
   final String date;
-  final bool isSender; // Boolean field
+  final bool isSender;
   final String status;
   final String reaction;
   final String repliedTo;
   final String repliedMessage;
   final String repliedType;
   final String messageType;
-  final String? localPath;
 
   MessageModel({
     this.id,
@@ -24,42 +23,64 @@ class MessageModel {
     required this.repliedMessage,
     required this.repliedType,
     required this.messageType,
-    this.localPath,
   });
+
+  factory MessageModel.fromMap(Map<String, dynamic> map, {String? id}) {
+    return MessageModel(
+      id: id,
+      message: map['message'] ?? '',
+      time: map['time'] ?? '',
+      date: map['date'] ?? '',
+      isSender: map['isSender'] ?? false,
+      status: map['status'] ?? 'sent',
+      reaction: map['reaction'] ?? '',
+      repliedTo: map['repliedTo'] ?? '',
+      repliedMessage: map['repliedMessage'] ?? '',
+      repliedType: map['repliedType'] ?? '',
+      messageType: map['messageType'] ?? 'text',
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'message': message,
       'time': time,
       'date': date,
-      'isSender': isSender, // Store as bool
+      'isSender': isSender,
       'status': status,
       'reaction': reaction,
       'repliedTo': repliedTo,
       'repliedMessage': repliedMessage,
       'repliedType': repliedType,
       'messageType': messageType,
-      'localPath': localPath,
     };
   }
 
-  factory MessageModel.fromMap(Map<String, dynamic> map, {String? id}) {
+  MessageModel copyWith({
+    String? id,
+    String? message,
+    String? time,
+    String? date,
+    bool? isSender,
+    String? status,
+    String? reaction,
+    String? repliedTo,
+    String? repliedMessage,
+    String? repliedType,
+    String? messageType,
+  }) {
     return MessageModel(
-      id: id ?? map['id'],
-      message: map['message'] ?? '',
-      time: map['time'] ?? '',
-      date: map['date'] ?? '',
-      isSender: map['isSender'] is bool
-          ? map['isSender']
-          : (map['isSender'] == 1 || map['isSender'] == '1'), // Convert int or String to bool
-      status: map['status'] ?? '',
-      reaction: map['reaction'] ?? '',
-      repliedTo: map['repliedTo'] ?? '',
-      repliedMessage: map['repliedMessage'] ?? '',
-      repliedType: map['repliedType'] ?? '',
-      messageType: map['messageType'] ?? 'text',
-      localPath: map['localPath'],
+      id: id ?? this.id,
+      message: message ?? this.message,
+      time: time ?? this.time,
+      date: date ?? this.date,
+      isSender: isSender ?? this.isSender,
+      status: status ?? this.status,
+      reaction: reaction ?? this.reaction,
+      repliedTo: repliedTo ?? this.repliedTo,
+      repliedMessage: repliedMessage ?? this.repliedMessage,
+      repliedType: repliedType ?? this.repliedType,
+      messageType: messageType ?? this.messageType,
     );
   }
 }

@@ -302,37 +302,37 @@ Widget productCardShimmer({
                   ),
                 ),
                 // Color dots placeholder
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 3),
-                      child: reusableShimmerContainer(
-                        context: context,
-                        isDarkMode: isDarkMode,
-                        height: 24,
-                        width: 24,
-                        isCircle: true, // Circular for color dots
-                      ),
-                    ),
-                    reusableShimmerContainer(
-                      context: context,
-                      isDarkMode: isDarkMode,
-                      height: 20,
-                      width: cardWidth * 0.5,
-                    ),
-                  ],
-                ),
-                // Limited stock placeholder
-                Padding(
-                  padding: EdgeInsets.all(8),
-                  child: reusableShimmerContainer(
-                    context: context,
-                    isDarkMode: isDarkMode,
-                    height: 20,
-                    width: cardWidth * 0.9,
-                  ),
-                )
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceAround,
+                //   children: [
+                //     Padding(
+                //       padding: const EdgeInsets.only(left: 3),
+                //       child: reusableShimmerContainer(
+                //         context: context,
+                //         isDarkMode: isDarkMode,
+                //         height: 24,
+                //         width: 24,
+                //         isCircle: true, // Circular for color dots
+                //       ),
+                //     ),
+                //     reusableShimmerContainer(
+                //       context: context,
+                //       isDarkMode: isDarkMode,
+                //       height: 20,
+                //       width: cardWidth * 0.5,
+                //     ),
+                //   ],
+                // ),
+                // // Limited stock placeholder
+                // Padding(
+                //   padding: EdgeInsets.all(8),
+                //   child: reusableShimmerContainer(
+                //     context: context,
+                //     isDarkMode: isDarkMode,
+                //     height: 20,
+                //     width: cardWidth * 0.9,
+                //   ),
+                // )
               ],
             ),
           ),
@@ -596,5 +596,117 @@ Widget historyOrderShimmer({
         isCircle: false,
       ),
     ],
+  );
+}
+Widget buildShimmerLoading(BuildContext context, bool isDark) {
+  return ListView.builder(
+    padding: responsivePadding(left: 16, right: 16, bottom: 16),
+    itemCount: 5, // Show 5 shimmer cards for loading
+    itemBuilder: (context, index) {
+      return Card(
+        elevation: 0,
+        margin: EdgeInsets.only(bottom: getResponsiveHeight(16)),
+        color: isDark ? lightGrayBlack : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(getResponsiveWidth(16)),
+        ),
+        child: Padding(
+          padding: responsivePadding(left: 16, right: 16, top: 16, bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Shimmer for header row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        reusableShimmerContainer(
+                          context: context,
+                          isDarkMode: isDark,
+                          height: getResponsiveHeight(20),
+                          width: getResponsiveWidth(200),
+                        ),
+                        SizedBox(height: getResponsiveHeight(4)),
+                        reusableShimmerContainer(
+                          context: context,
+                          isDarkMode: isDark,
+                          height: getResponsiveHeight(12),
+                          width: getResponsiveWidth(150),
+                        ),
+                      ],
+                    ),
+                  ),
+                  reusableShimmerContainer(
+                    context: context,
+                    isDarkMode: isDark,
+                    height: getResponsiveHeight(24),
+                    width: getResponsiveWidth(24),
+                    isCircle: true,
+                  ),
+                ],
+              ),
+              SizedBox(height: getResponsiveHeight(16)),
+              // Shimmer for customer row
+              Row(
+                children: [
+                  reusableShimmerContainer(
+                    context: context,
+                    isDarkMode: isDark,
+                    height: getResponsiveHeight(16),
+                    width: getResponsiveWidth(16),
+                    isCircle: true,
+                  ),
+                  SizedBox(width: getResponsiveWidth(8)),
+                  Expanded(
+                    child: reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDark,
+                      height: getResponsiveHeight(14),
+                      width: double.infinity,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: getResponsiveHeight(8)),
+              // Shimmer for items row
+              Row(
+                children: [
+                  reusableShimmerContainer(
+                    context: context,
+                    isDarkMode: isDark,
+                    height: getResponsiveHeight(16),
+                    width: getResponsiveWidth(16),
+                    isCircle: true,
+                  ),
+                  SizedBox(width: getResponsiveWidth(8)),
+                  Expanded(
+                    child: reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDark,
+                      height: getResponsiveHeight(12),
+                      width: getResponsiveWidth(100),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: getResponsiveHeight(12)),
+              // Shimmer for track button
+              Align(
+                alignment: Alignment.centerRight,
+                child: reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDark,
+                  height: getResponsiveHeight(32),
+                  width: getResponsiveWidth(100),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }

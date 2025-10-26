@@ -1,188 +1,181 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:glamora/BottomNavBar/BottomNavBar.dart';
+import '../BottomNavBar/BottomNavBar.dart';
 
 class NotificationService {
-  //initialising firebase message plugin
   FirebaseMessaging messaging = FirebaseMessaging.instance;
-  //initialising firebase message plugin
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
 
-  //send notificartion request
-  void requestNotificationPermission() async {
+  // Store messages grouped by chat (for stacked notifications)
+  final Map<String, List<Map<String, String>>> _chatMessages = {};
+
+  // 🔹 1. Request Permission
+  Future<void> requestNotificationPermission() async {
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
-      announcement: true,
       badge: true,
-      carPlay: true,
-      criticalAlert: true,
-      provisional: true,
       sound: true,
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      if (kDebugMode) {
-        print('user granted permission');
-      }
-    } else if (settings.authorizationStatus ==
-        AuthorizationStatus.provisional) {
-      if (kDebugMode) {
-        print('user granted provisional permission');
-      }
+      print('✅ Notification permission granted');
     } else {
-      //appsetting.AppSettings.openNotificationSettings();
-      if (kDebugMode) {
-        print('user denied permission');
-      }
+      print('❌ Notification permission denied');
     }
   }
 
-  void subscribeToOrdersTopic() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    // Subscribe to the 'orders' topic
-    await messaging.subscribeToTopic(FirebaseAuth.instance.currentUser!.uid).then((value) =>
-        print('\nOrders Channel Subscribe Successfully\n'));
-
-    print('Subscribed to "Orders" topic');
+  // 🔹 2. Get FCM Token
+  Future<String> getDeviceToken() async {
+    String? token = await messaging.getToken();
+    if (kDebugMode) print('📱 FCM Token: $token');
+    return token ?? '';
   }
 
-//Fetch FCM Token
-  Future<String> getDeviceToken() async {
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
+  // 🔹 3. Initialize Local Notifications
+  Future<void> initLocalNotifications(
+      BuildContext context, RemoteMessage message) async {
+    const androidInit = AndroidInitializationSettings('@drawable/ic_stat_icon');
+    const iOSInit = DarwinInitializationSettings();
+    final settings = InitializationSettings(android: androidInit, iOS: iOSInit);
+
+    await _flutterLocalNotificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        handleMessage(context, message);
+      },
     );
 
-    String? token = await messaging.getToken();
-    return token!;
+    const channel = AndroidNotificationChannel(
+      'chat_channel',
+      'Chat Notifications',
+      description: 'Used for chat message notifications',
+      importance: Importance.max,
+    );
+
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
-  //function to initialise flutter local notification plugin to show notifications for android when app is active
-  void initLocalNotifications(
-      BuildContext context, RemoteMessage message) async {
-    var androidInitializationSettings =
-    const AndroidInitializationSettings('@drawable/ic_stat_icon');
-    var iosInitializationSettings = const DarwinInitializationSettings();
-
-    var initializationSetting = InitializationSettings(
-        android: androidInitializationSettings, iOS: iosInitializationSettings);
-
-    await _flutterLocalNotificationsPlugin.initialize(initializationSetting,
-        onDidReceiveNotificationResponse: (payload) {
-          // handle interaction when app is active for android
-          handleMessage(context, message);
-        });
-  }
-
-//
+  // 🔹 4. Listen to Firebase messages (foreground)
   void firebaseInit(BuildContext context) {
     FirebaseMessaging.onMessage.listen((message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification!.android;
-
-      if (kDebugMode) {
-        print("notifications title:${notification!.title}");
-        print("notifications body:${notification.body}");
-        print('count:${android!.count}');
-        print('data:${message.data.toString()}');
-      }
-
-      if (Platform.isIOS) {
-        forgroundMessage();
-      }
-
       if (Platform.isAndroid) {
         initLocalNotifications(context, message);
-        showNotification(message);
+        _showChatStyleNotification(message);
+      } else if (Platform.isIOS) {
+        FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
       }
     });
   }
 
-  //handle tap on notification when app is in background or terminated
+  // 🔹 5. Handle taps from background or terminated state
   Future<void> setupInteractMessage(BuildContext context) async {
-    // // when app is terminated
-    // RemoteMessage? initialMessage =
-    //     await FirebaseMessaging.instance.getInitialMessage();
-
-    // if (initialMessage != null) {
-    //   handleMessage(context, initialMessage);
-    // }
-
-    //when app ins background
-    FirebaseMessaging.onMessageOpenedApp.listen((event) {
-      handleMessage(context, event);
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      handleMessage(context, message);
     });
 
-    // Handle terminated state
-    FirebaseMessaging.instance
-        .getInitialMessage()
-        .then((RemoteMessage? message) {
-      if (message != null && message.data.isNotEmpty) {
-        handleMessage(context, message);
-      }
-    });
+    RemoteMessage? initialMessage =
+    await FirebaseMessaging.instance.getInitialMessage();
+
+    if (initialMessage != null) {
+      handleMessage(context, initialMessage);
+    }
   }
 
-  // function to show visible notification when app is active
-  Future<void> showNotification(RemoteMessage message) async {
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel',
-      'High Importance Notifications',
-      importance: Importance.max,
-      sound: RawResourceAndroidNotificationSound('money'),
+  // 🔹 6. WhatsApp-style stacked notifications
+  Future<void> _showChatStyleNotification(RemoteMessage message) async {
+    final data = message.data;
+    final chatId = data['chat_id'] ?? 'default_chat';
+    final chatName = data['chat_name'] ?? 'Chat';
+    final sender = data['sender'] ?? 'Someone';
+    final text = message.notification?.body ?? data['body'] ?? '';
+
+    // Store recent messages for each chat
+    _chatMessages.putIfAbsent(chatId, () => []);
+    _chatMessages[chatId]!.add({'sender': sender, 'text': text});
+
+    // Keep last 5 messages
+    if (_chatMessages[chatId]!.length > 5) {
+      _chatMessages[chatId] =
+          _chatMessages[chatId]!.sublist(_chatMessages[chatId]!.length - 5);
+    }
+
+    // Create list of Message objects
+    final List<Message> messageList = _chatMessages[chatId]!
+        .map((msg) => Message(
+      msg['text'] ?? '',
+      DateTime.now(),
+      Person(name: msg['sender']),
+    ))
+        .toList();
+
+    // WhatsApp-like Messaging style
+    final style = MessagingStyleInformation(
+      Person(name: chatName),
+      conversationTitle: chatName,
+      groupConversation: true,
+      messages: messageList,
     );
 
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      channel.id,
-      channel.name,
-      channelDescription: 'Your channel description',
-      importance: Importance.high,
+    final androidDetails = AndroidNotificationDetails(
+      'chat_channel',
+      'Chat Notifications',
+      channelDescription: 'For chat messages',
+      importance: Importance.max,
       priority: Priority.high,
-      sound: channel.sound,
+      styleInformation: style,
+      groupKey: 'chat_group',
       icon: '@drawable/ic_stat_icon',
     );
 
-    final NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-      iOS: const DarwinNotificationDetails(),
+    const iOSDetails = DarwinNotificationDetails();
+    final details =
+    NotificationDetails(android: androidDetails, iOS: iOSDetails);
+
+    final int notificationId = chatId.hashCode;
+
+    await _flutterLocalNotificationsPlugin.show(
+      notificationId,
+      chatName,
+      text,
+      details,
+    );
+
+    // Group summary (like WhatsApp multiple chats)
+    const summary = AndroidNotificationDetails(
+      'chat_channel',
+      'Chat Notifications',
+      styleInformation: InboxStyleInformation([]),
+      setAsGroupSummary: true,
+      groupKey: 'chat_group',
     );
 
     await _flutterLocalNotificationsPlugin.show(
       0,
-      message.notification?.title,
-      message.notification?.body,
-      details,
+      'You have new messages',
+      'Multiple conversations',
+      NotificationDetails(android: summary),
     );
   }
 
-  Future forgroundMessage() async {
-    await FirebaseMessaging.instance
-        .setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-  }
-
-  Future<void> handleMessage(
-      BuildContext context,
-      RemoteMessage message,
-      ) async {
-    print(
-        "Navigating to appointments screen. Hit here to handle the message. Message data: ${message.data}");
-
-    Navigator.push(
+  // 🔹 7. Handle Navigation on Tap
+  Future<void> handleMessage(BuildContext context, RemoteMessage message) async {
+    Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) =>BottomNavBar(),
-      ),
+      MaterialPageRoute(builder: (_) => BottomNavBar()),
+          (route) => false,
     );
   }
 }

@@ -35,7 +35,7 @@ Widget newArrivalSerumList(
         return const Center(child: Text('No recommended products found'));
       }
       return Container(
-        height: 380,
+        height: 300,
         child: ListView.builder(
           itemCount: value.recommendedCloths.length,
           scrollDirection: Axis.horizontal,
@@ -175,33 +175,33 @@ ProductCard({required BuildContext context,
                       ],
                     ),
                   ),
-                  cloth.variants.first.colors.isNotEmpty
-                      ? SizedBox(
-                    width: MediaQuery
-                        .of(context)
-                        .size
-                        .width * .3,
-                    height: 28,
-                    child: ListView.builder(
-                        itemCount: cloth.variants.first.colors.length,
-                        physics: const ScrollPhysics(),
-                        shrinkWrap: true,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            margin: const EdgeInsets.only(left: 3),
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                                color: cloth.variants.first.colors[index],
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: lightGrayBlack, width: .5)),
-                          );
-                        }),
-                  )
-                      : const Text("None"),
-                  limitedStock(context: context)
+                  // cloth.variants.first.colors.isNotEmpty
+                  //     ? SizedBox(
+                  //   width: MediaQuery
+                  //       .of(context)
+                  //       .size
+                  //       .width * .3,
+                  //   height: 28,
+                  //   child: ListView.builder(
+                  //       itemCount: cloth.variants.first.colors.length,
+                  //       physics: const ScrollPhysics(),
+                  //       shrinkWrap: true,
+                  //       scrollDirection: Axis.horizontal,
+                  //       itemBuilder: (context, index) {
+                  //         return Container(
+                  //           margin: const EdgeInsets.only(left: 3),
+                  //           width: 24,
+                  //           height: 24,
+                  //           decoration: BoxDecoration(
+                  //               color: cloth.variants.first.colors[index],
+                  //               shape: BoxShape.circle,
+                  //               border: Border.all(
+                  //                   color: lightGrayBlack, width: .5)),
+                  //         );
+                  //       }),
+                  // )
+                  //     : const Text("None"),
+                  // limitedStock(context: context)
                 ],
               ),
             ),

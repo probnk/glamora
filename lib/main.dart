@@ -10,10 +10,13 @@ import 'package:glamora/providers/ChatProvider.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:glamora/providers/HistoryProvider.dart';
 import 'package:glamora/providers/HomeProvider.dart';
+import 'package:glamora/providers/OrdersProvider.dart';
 import 'package:glamora/providers/ProductDetailsProvider.dart';
 import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:glamora/providers/RatingProvider.dart';
 import 'package:glamora/providers/ReviewProvider.dart';
+import 'package:glamora/providers/SearchProvider.dart';
+import 'package:glamora/providers/TrackingProvider.dart';
 import 'package:glamora/providers/UserDetailsProvider.dart';
 import 'package:glamora/providers/UserProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
@@ -76,7 +79,10 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => GenderCategoryProvider()),
           ChangeNotifierProvider(create: (context) => ChatProvider()),
           ChangeNotifierProvider(create: (context) => InputProvider()),
+          ChangeNotifierProvider(create: (context) => SearchProvider()),
           ChangeNotifierProvider(create: (context) => AIChatBotProvider()),
+          ChangeNotifierProvider(create: (context) => TrackingProvider()),
+          ChangeNotifierProvider(create: (context) => OrdersProvider()),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
