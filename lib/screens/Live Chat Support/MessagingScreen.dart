@@ -646,10 +646,10 @@ class _MessagingScreenState extends State<MessagingScreen> {
             errorBuilder: (context, error, stackTrace) => smallFont(text: 'Image', color: isDarkMode ? white : grayBlack),
           ),
         );
-      case 'voice':
-        return Row(
-          children: [Icon(Icons.mic, size: 16, color: isDarkMode ? white : grayBlack), smallFont(text: 'Voice message', color: isDarkMode ? white : grayBlack)],
-        );
+      // case 'voice':
+      //   return Row(
+      //     children: [Icon(Icons.mic, size: 16, color: isDarkMode ? white : grayBlack), smallFont(text: 'Voice message', color: isDarkMode ? white : grayBlack)],
+      //   );
       default:
         return smallFont(
           text: content,
@@ -686,12 +686,12 @@ class _MessagingScreenState extends State<MessagingScreen> {
             errorWidget: (context, url, error) => Center(child: Icon(Icons.error, color: Colors.red)),
           ),
         );
-      case 'voice':
-        return VoiceBubble(
-          audioPath: message.message,
-          isPlaying: provider.isPlayingMessage(message.id),
-          onPlayPause: () => provider.togglePlay(message.id!, message.message),
-        );
+      // case 'voice':
+      //   return VoiceBubble(
+      //     audioPath: message.message,
+      //     isPlaying: provider.isPlayingMessage(message.id),
+      //     onPlayPause: () => provider.togglePlay(message.id!, message.message),
+      //   );
       default:
         return smallFont(
           text: message.message,
@@ -760,7 +760,8 @@ class _MessagingScreenState extends State<MessagingScreen> {
                     ),
                     GestureDetector(
                       onTap: chatProvider.setRepliedMessageEmpty,
-                      child: const Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.close, size: 18, color: Colors.grey)),
+                      child: const Padding(padding: EdgeInsets.all(8.0),
+                          child: Icon(Icons.close, size: 18, color: Colors.grey)),
                     ),
                   ],
                 ),
@@ -781,13 +782,13 @@ class _MessagingScreenState extends State<MessagingScreen> {
               ? null
               : () => inputProvider.pickImage(context),
         ),
-      if (inputProvider.controller.text.isEmpty)
-        IconButton(
-          icon: Icon(inputProvider.isRecording ? Icons.stop : Icons.mic, color: isDarkMode ? white : grayBlack),
-          onPressed: inputProvider.pendingImage != null || inputProvider.pendingVoicePath != null
-              ? null
-              : (inputProvider.isRecording ? inputProvider.stopRecording : inputProvider.startRecording),
-        ),
+      // if (inputProvider.controller.text.isEmpty)
+      //   IconButton(
+      //     icon: Icon(inputProvider.isRecording ? Icons.stop : Icons.mic, color: isDarkMode ? white : grayBlack),
+      //     onPressed: inputProvider.pendingImage != null || inputProvider.pendingVoicePath != null
+      //         ? null
+      //         : (inputProvider.isRecording ? inputProvider.stopRecording : inputProvider.startRecording),
+      //   ),
     ];
     Widget inputWidget;
     if (inputProvider.isRecording) {

@@ -116,6 +116,8 @@ class GenderCategoryScreen extends StatelessWidget {
             'picture': imageUrl?.isNotEmpty ?? false
                 ? imageUrl
                 : currentUser.photoURL ?? 'https://www.w3schools.com/w3images/avatar2.png',
+            'wishlist':0,
+            'cart':0,
             'timestamp': DateTime.now().toIso8601String(),
           },
         );

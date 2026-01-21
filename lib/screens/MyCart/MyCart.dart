@@ -1,3 +1,4 @@
+// my_cart.dart (updated)
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:glamora/screens/UserProfile/UserDetails.dart';
 import 'package:provider/provider.dart';
 
 import '../../Reuse Widgets/loadingShimmer.dart';
+import '../../models/cartProducts.dart';
 
 class MyCart extends StatefulWidget {
   const MyCart({super.key});
@@ -35,27 +37,49 @@ class _MyCartState extends State<MyCart> {
     context.read<CartProvider>().fetchUserCartFromFirestore();
   }
 
-  _cartAppbar({required bool isDarkMode}) {
+  _cartAppbar({required bool isDarkMode, required CartProvider cartProvider}) {
     return AppBar(
       backgroundColor: isDarkMode ? lightGrayBlack : Colors.grey.shade50,
       iconTheme: IconThemeData(color: isDarkMode ? white : grayBlack),
       centerTitle: true,
       title: titleFont(
-          text: "Shopping Cart", color: isDarkMode ? white : grayBlack),
+          text: cartProvider.isSelectionMode ? "Select Items" : "Shopping Cart",
+          color: isDarkMode ? white : grayBlack),
+      actions: [
+        if (cartProvider.isSelectionMode)
+          IconButton(
+            icon: Icon(Icons.clear),
+            onPressed: () {
+              cartProvider.clearSelection();
+            },
+          ),
+      ],
     );
   }
 
-  _shoppingCartBottomSheet(
-      {required bool isDarkMode, required var currentUser}) {
+  _shoppingCartBottomSheet({
+    required bool isDarkMode,
+    required var currentUser,
+    required CartProvider cartProvider,
+  }) {
     return Container(
       color: isDarkMode ? grayBlack : white,
       child: Consumer<CartProvider>(builder: (context, value, child) {
+        // Calculate total based on selection mode
         int total = 0;
-        for (int i = 0; i < value.cartItems.length; i++)
-          total += int.parse(value.cartItems[i].total);
+        List<CartProducts> itemsForCheckout = [];
+
+        if (value.isSelectionMode && value.selectedItems.isNotEmpty) {
+          itemsForCheckout = value.selectedItems;
+          total = itemsForCheckout.fold(0, (sum, item) => sum + int.parse(item.total));
+        } else {
+          itemsForCheckout = value.cartItems;
+          total = value.cartItems.fold(0, (sum, item) => sum + int.parse(item.total));
+        }
+
         if (value.isLoading) {
           return ListView.builder(
-            itemCount: 6, // Just an arbitrary number for shimmer effect items
+            itemCount: 6,
             itemBuilder: (context, index) {
               return cartClothCardShimmer(
                   isDarkMode: isDarkMode, context: context);
@@ -65,10 +89,10 @@ class _MyCartState extends State<MyCart> {
         else if (value.cartItems.isEmpty)
           return Center(
               child: Icon(
-            Icons.remove_shopping_cart_rounded,
-            color: isDarkMode ? Colors.grey.shade600 : grayBlack,
-            size: 200,
-          ));
+                Icons.remove_shopping_cart_rounded,
+                color: isDarkMode ? Colors.grey.shade600 : grayBlack,
+                size: 200,
+              ));
         else
           return Container(
             height: 150,
@@ -84,33 +108,6 @@ class _MyCartState extends State<MyCart> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Container(
-                //   width: MediaQuery.of(context).size.width,
-                //   height: 50,
-                //   child: TextFormField(
-                //     cursorColor: Colors.black,
-                //     controller: _couponController,
-                //     decoration: InputDecoration(
-                //       filled: true,
-                //       fillColor: isDarkMode ? grayBlack : Colors.grey.shade100,
-                //       hintText: "Add coupon code",
-                //       hintStyle: TextStyle(
-                //           color: isDarkMode ? white : Colors.grey.shade400),
-                //       prefixIcon: Icon(
-                //         CupertinoIcons.ticket,
-                //         color: Colors.grey,
-                //       ),
-                //       focusedBorder: OutlineInputBorder(
-                //           borderRadius: BorderRadius.circular(20),
-                //           borderSide: BorderSide(color: Colors.transparent)),
-                //       enabledBorder: OutlineInputBorder(
-                //           borderRadius: BorderRadius.circular(20),
-                //           borderSide: BorderSide(color: Colors.transparent)),
-                //     ),
-                //     style: TextStyle(color: Colors.white, fontSize: 18),
-                //   ),
-                // ),
-                // SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -142,31 +139,31 @@ class _MyCartState extends State<MyCart> {
                       onPressed: total == 0
                           ? null
                           : () {
-                              // Access UserDetailsProvider with listen: false
-                              final user = Provider.of<UserDetailsProvider>(
-                                  context,
-                                  listen: false);
+                        final user = Provider.of<UserDetailsProvider>(
+                            context,
+                            listen: false);
 
-                              if (user.userDetails.fullName == "" ||
-                                  user.userDetails.address == "" ||
-                                  user.userDetails.zipCode == "" ||
-                                  user.userDetails.phoneNumber == "") {
-                                Navigator.push
-                                  (
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => UserDetails(),
-                                  ),
-                                );
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => OrderDetails(),
-                                  ),
-                                );
-                              }
-                            },
+                        if (user.userDetails.fullName == "" ||
+                            user.userDetails.address == "" ||
+                            user.userDetails.zipCode == "" ||
+                            user.userDetails.phoneNumber == "") {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UserDetails(),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetails(
+                                itemsToCheckout: itemsForCheckout,
+                              ),
+                            ),
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                           backgroundColor: grayBlack,
                           elevation: 8,
@@ -176,7 +173,7 @@ class _MyCartState extends State<MyCart> {
                       child: Container(
                           width: MediaQuery.of(context).size.width * .7,
                           padding:
-                              EdgeInsets.symmetric(vertical: 8, horizontal: 40),
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 40),
                           decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               gradient: LinearGradient(
@@ -198,11 +195,19 @@ class _MyCartState extends State<MyCart> {
   @override
   build(BuildContext context) {
     final themeProvider = Provider.of<DarkModeProvider>(context);
+    final cartProvider = Provider.of<CartProvider>(context);
+
     return Scaffold(
         backgroundColor: themeProvider.isDarkMode ? grayBlack : white,
-        appBar: _cartAppbar(isDarkMode: themeProvider.isDarkMode),
-        bottomSheet:_shoppingCartBottomSheet(
-                isDarkMode: themeProvider.isDarkMode, currentUser: currentUser),
+        appBar: _cartAppbar(
+            isDarkMode: themeProvider.isDarkMode,
+            cartProvider: cartProvider
+        ),
+        bottomSheet: _shoppingCartBottomSheet(
+          isDarkMode: themeProvider.isDarkMode,
+          currentUser: currentUser,
+          cartProvider: cartProvider,
+        ),
         body: shoppingCartBody(isDarkMode: themeProvider.isDarkMode));
   }
 }

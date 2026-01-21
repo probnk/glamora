@@ -16,6 +16,7 @@ import 'package:glamora/screens/UserProfile/UserProfile.dart';
 import 'package:glamora/screens/home/singleCategory.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../../Services/LocationService.dart';
 import '../../Services/notificationService.dart';
 import '../../constants/reponsivness.dart';
 import 'SearchingScreen.dart';
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Schedule fetchPersonalizedProducts after build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductListProvider>().fetchPersonalizedProducts();
+      storeUserLocation();
     });
   }
 

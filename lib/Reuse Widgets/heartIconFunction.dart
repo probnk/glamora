@@ -33,13 +33,13 @@ checkAndAddWishlistItems(
         if (!isFound) {
           value.addWishListItem(wishlistData);
           value.storeClothsList(wishlistData);
+          trackPersonalization(currentUser.uid, cloth.category, "wishlist",'increment');
         } else {
           value.deleteWishListItem(cloth.id);
           value.removeWishListItems(cloth.id);
+          trackPersonalization(currentUser.uid, cloth.category, "wishlist",'decrement');
         }
-        if(currentUser != null){
-          trackPersonalization(currentUser.uid, cloth.category, "wishlist");
-        }
+
       },
       icon: Icon(
         isFound ? IconlyBold.heart : IconlyLight.heart,

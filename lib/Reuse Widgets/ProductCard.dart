@@ -118,12 +118,14 @@ ProductCard({required BuildContext context,
                                 genderCategoryContainer(
                                     text: cloth.gender,
                                     isDarkMode: isDarkMode,
-                                    color: purple.withAlpha(100)),
+                                    color: Colors.green.withOpacity(0.15),
+                                textColor: Colors.green),
                                 const SizedBox(width: 4),
                                 genderCategoryContainer(
                                     text: cloth.category,
                                     isDarkMode: isDarkMode,
-                                    color: green.withAlpha(100)),
+                                    textColor: Colors.blue,
+                                    color: Colors.blue.withOpacity(0.15)),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -151,7 +153,7 @@ ProductCard({required BuildContext context,
                                       productTitle(
                                           text:
                                           "Rs. ${((cloth.price / 100) *
-                                              (100 - cloth.discount))}",
+                                              (100 - cloth.discount)).toStringAsFixed(2)}",
                                           color:
                                           isDarkMode ? white : grayBlack),
                                       SizedBox(width: 5),

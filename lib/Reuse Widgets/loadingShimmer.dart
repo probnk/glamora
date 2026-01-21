@@ -542,14 +542,16 @@ Widget historyOrderShimmer({
                   context: context,
                   isDarkMode: isDarkMode,
                   height: 16,
-                  width: screenWidth * 0.6, // Matches maxWidth
+                  width: screenWidth * 0.6,
+                  // Matches maxWidth
                   isCircle: false,
                 ),
                 reusableShimmerContainer(
                   context: context,
                   isDarkMode: isDarkMode,
                   height: 12,
-                  width: 80, // Approximate width for order time
+                  width: 80,
+                  // Approximate width for order time
                   isCircle: false,
                 ),
               ],
@@ -563,14 +565,16 @@ Widget historyOrderShimmer({
                   context: context,
                   isDarkMode: isDarkMode,
                   height: 12,
-                  width: 100, // Approximate width for order date
+                  width: 100,
+                  // Approximate width for order date
                   isCircle: false,
                 ),
                 reusableShimmerContainer(
                   context: context,
                   isDarkMode: isDarkMode,
                   height: 12,
-                  width: screenWidth * 0.5, // Matches maxWidth
+                  width: screenWidth * 0.5,
+                  // Matches maxWidth
                   isCircle: false,
                 ),
               ],
@@ -581,7 +585,8 @@ Widget historyOrderShimmer({
               context: context,
               isDarkMode: isDarkMode,
               height: 12,
-              width: 100, // Approximate width for "View Detail's"
+              width: 100,
+              // Approximate width for "View Detail's"
               isCircle: false,
             ),
           ],
@@ -591,13 +596,354 @@ Widget historyOrderShimmer({
       reusableShimmerContainer(
         context: context,
         isDarkMode: isDarkMode,
-        height: 5, // Matches divider thickness
+        height: 5,
+        // Matches divider thickness
         width: double.infinity,
         isCircle: false,
       ),
     ],
   );
 }
+
+Widget productDetailsShimmer({
+  required BuildContext context,
+  required bool isDarkMode,
+}) {
+  final screenWidth = MediaQuery.of(context).size.width;
+
+  return ListView(
+    physics: const NeverScrollableScrollPhysics(),
+    children: [
+      // Top Image Section (PageView placeholder)
+      reusableShimmerContainer(
+        context: context,
+        isDarkMode: isDarkMode,
+        height: 300,
+        width: screenWidth,
+      ),
+
+      // Main Card Content
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDarkMode ? grayBlack : white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            reusableShimmerContainer(
+              context: context,
+              isDarkMode: isDarkMode,
+              height: 24,
+              width: screenWidth * 0.7,
+            ),
+            const SizedBox(height: 12),
+
+            // Gender & Category Tags + Heart Icon
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 28,
+                      width: 70,
+                    ),
+                    const SizedBox(width: 8),
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 28,
+                      width: 80,
+                    ),
+                  ],
+                ),
+                reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDarkMode,
+                  height: 40,
+                  width: 40,
+                  isCircle: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Price Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 28,
+                      width: 100,
+                    ),
+                    const SizedBox(width: 8),
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 20,
+                      width: 70,
+                    ),
+                  ],
+                ),
+                reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDarkMode,
+                  height: 20,
+                  width: 120,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Colors Label + Color Circles
+            Row(
+              children: [
+                reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDarkMode,
+                  height: 18,
+                  width: 60,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: List.generate(
+                          5,
+                          (i) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: reusableShimmerContainer(
+                                  context: context,
+                                  isDarkMode: isDarkMode,
+                                  height: 32,
+                                  width: 32,
+                                  isCircle: true,
+                                ),
+                              )),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Sizes Label + Size Chips
+            Row(
+              children: [
+                reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDarkMode,
+                  height: 18,
+                  width: 60,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: List.generate(
+                          5,
+                          (i) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: reusableShimmerContainer(
+                                  context: context,
+                                  isDarkMode: isDarkMode,
+                                  height: 36,
+                                  width: 50,
+                                ),
+                              )),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Rating Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Row(
+                      children: List.generate(
+                          5,
+                          (_) => const Icon(Icons.star,
+                              size: 20, color: Colors.grey)),
+                    ),
+                    const SizedBox(width: 8),
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 16,
+                      width: 100,
+                    ),
+                  ],
+                ),
+                reusableShimmerContainer(
+                  context: context,
+                  isDarkMode: isDarkMode,
+                  height: 16,
+                  width: 60,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Review Card (first review preview)
+            Card(
+              elevation: 3,
+              color: isDarkMode ? lightGrayBlack : white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            reusableShimmerContainer(
+                              context: context,
+                              isDarkMode: isDarkMode,
+                              height: 40,
+                              width: 40,
+                              isCircle: true,
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                reusableShimmerContainer(
+                                  context: context,
+                                  isDarkMode: isDarkMode,
+                                  height: 16,
+                                  width: 100,
+                                ),
+                                const SizedBox(height: 4),
+                                reusableShimmerContainer(
+                                  context: context,
+                                  isDarkMode: isDarkMode,
+                                  height: 12,
+                                  width: 80,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Row(
+                              children: List.generate(
+                                  5,
+                                  (_) => const Icon(Icons.star,
+                                      size: 16, color: Colors.grey)),
+                            ),
+                            const SizedBox(height: 4),
+                            reusableShimmerContainer(
+                              context: context,
+                              isDarkMode: isDarkMode,
+                              height: 12,
+                              width: 60,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 12,
+                      width: double.infinity,
+                    ),
+                    const SizedBox(height: 8),
+                    reusableShimmerContainer(
+                      context: context,
+                      isDarkMode: isDarkMode,
+                      height: 12,
+                      width: screenWidth * 0.6,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Description Title + Text
+            reusableShimmerContainer(
+              context: context,
+              isDarkMode: isDarkMode,
+              height: 20,
+              width: 100,
+            ),
+            const SizedBox(height: 8),
+            reusableShimmerContainer(
+              context: context,
+              isDarkMode: isDarkMode,
+              height: 12,
+              width: double.infinity,
+            ),
+            const SizedBox(height: 8),
+            reusableShimmerContainer(
+              context: context,
+              isDarkMode: isDarkMode,
+              height: 12,
+              width: screenWidth * 0.8,
+            ),
+            const SizedBox(height: 24),
+
+            // Features Title
+            reusableShimmerContainer(
+              context: context,
+              isDarkMode: isDarkMode,
+              height: 18,
+              width: 80,
+            ),
+            const SizedBox(height: 12),
+
+            // Feature List Items
+            ...List.generate(
+                4,
+                (i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check, size: 16, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          reusableShimmerContainer(
+                            context: context,
+                            isDarkMode: isDarkMode,
+                            height: 14,
+                            width: screenWidth * 0.6,
+                          ),
+                        ],
+                      ),
+                    )),
+
+            const SizedBox(height: 120), // Space for bottom sheet
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
 Widget buildShimmerLoading(BuildContext context, bool isDark) {
   return ListView.builder(
     padding: responsivePadding(left: 16, right: 16, bottom: 16),

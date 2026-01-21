@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:provider/provider.dart';
@@ -331,37 +332,114 @@ class OrdersListScreen extends StatelessWidget {
                       ],
                       SizedBox(height: getResponsiveHeight(12)),
                       // Tracking Button if available
-                      if (order.trackingId != null &&
-                          order.trackingId!.isNotEmpty)
+                      // Assuming these fields exist on your model
+// order.trackingId  → String?
+// order.isCancelled → bool
+// order.id          → String (document ID)
+
+                      if (order.cancelled == false) ...[
+                        // 1. Tracking button – show only when trackingId exists
+                        if (order.trackingId != null && order.trackingId!.isNotEmpty)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => OrderTrackingScreen(order: order),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.track_changes,
+                                  size: 16, color: isDark ? green : purple),
+                              label: mediumFont(
+                                text: 'Track Order',
+                                color: isDark ? green : purple,
+                                weight: FontWeight.w600,
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: responsivePadding(
+                                    left: 16, right: 16, top: 8, bottom: 8),
+                                backgroundColor:
+                                isDark ? green.withAlpha(50) : purple.withAlpha(50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(getResponsiveWidth(20)),
+                                ),
+                              ),
+                            ),
+                          )
+                        // 2. Cancel button – show only when NO trackingId (order not shipped yet)
+                        else if (order.trackingId == null || order.trackingId!.isEmpty)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                // Optional: show confirmation dialog
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text("Cancel Order"),
+                                    content: Text("Are you sure you want to cancel this order?"),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: Text("No"),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: Text("Yes"),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  try {
+                                    await FirebaseFirestore.instance
+                                        .collection('Orders')
+                                        .doc(order.docId) // or order.orderId whatever your doc ID field is
+                                        .update({'cancelled': true});
+
+                                    // Optional: show success message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Order cancelled successfully")),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Failed to cancel order")),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: Icon(Icons.cancel, size: 16, color: Colors.red),
+                              label: mediumFont(
+                                text: 'Cancel Order',
+                                color: Colors.red,
+                                weight: FontWeight.w600,
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: responsivePadding(
+                                    left: 16, right: 16, top: 8, bottom: 8),
+                                backgroundColor: Colors.red.withAlpha(50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(getResponsiveWidth(20)),
+                                ),
+                              ),
+                            ),
+                          ),
+
+// 3. If order is already cancelled → show a simple label (optional)
+                      ] else
                         Align(
                           alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      OrderTrackingScreen(order: order),
-                                ),
-                              );
-                            },
-                            icon: Icon(Icons.track_changes,
-                                size: 16, color: isDark ? green : purple),
-                            label: mediumFont(
-                              text: 'Track Order',
-                              color: isDark ? green : purple,
-                              weight: FontWeight.w600,
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: responsivePadding(
-                                  left: 16, right: 16, top: 8, bottom: 8),
-                              backgroundColor: isDark
-                                  ? green.withAlpha(50)
-                                  : purple.withAlpha(50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    getResponsiveWidth(20)),
-                              ),
+                          child: Chip(
+                            backgroundColor: Colors.red.withOpacity(0.2),
+                            label: Text(
+                              "Order Cancelled",
+                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),

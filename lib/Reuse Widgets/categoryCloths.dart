@@ -149,7 +149,7 @@ Widget buildProductCard(
                   children: [
                     productTitle(
                         text:
-                            "Rs. ${((product.price / 100) * (100 - product.discount))}",
+                            "Rs. ${((product.price / 100) * (100 - product.discount)).toStringAsFixed(2)}",
                         weight: FontWeight.bold,
                         color: isDarkMode ? white : lightGrayBlack),
                     const SizedBox(width: 4),

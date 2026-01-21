@@ -1,3 +1,4 @@
+// my_cart.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/cartProductsList.dart';
@@ -9,6 +10,8 @@ import 'package:glamora/providers/WishListProvider.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 
+import '../../Services/personalization_service.dart';
+
 class MyWishlist extends StatefulWidget {
   const MyWishlist({super.key});
 
@@ -17,10 +20,12 @@ class MyWishlist extends StatefulWidget {
 }
 
 class _MyWishlistState extends State<MyWishlist> {
+  var currentUser;
 
   @override
   void initState() {
     super.initState();
+    currentUser = FirebaseAuth.instance.currentUser;
     Provider.of<WishListProvider>(context, listen: false).fetchClothsList();
   }
 
@@ -38,7 +43,7 @@ class _MyWishlistState extends State<MyWishlist> {
     return Consumer<WishListProvider>(builder: (context, value, child) {
       if (value.isLoading) {
         return ListView.builder(
-          itemCount: 6, // Just an arbitrary number for shimmer effect items
+          itemCount: 6,
           itemBuilder: (context, index) {
             return cartClothCardShimmer(
                 isDarkMode: isDarkMode, context: context);
@@ -58,29 +63,42 @@ class _MyWishlistState extends State<MyWishlist> {
             shrinkWrap: true,
             physics: ScrollPhysics(),
             itemBuilder: (context, index) {
-              return Stack(
-                children: [
-                  cartClothCardDesign(
-                      context: context,
-                      isCart: false,
-                      isDarkMode: isDarkMode,
-                      wishListProducts: value.wishListProducts[index]),
-                  Positioned(
-                    top: 0,
-                    right: 10,
-                    child: IconButton(
-                        onPressed: () {
-                          value.deleteWishListItem(
-                              value.wishListProducts[index].id);
-                          value.removeWishListItems(
-                              value.wishListProducts[index].id);
-                        },
-                        icon: Icon(
-                          IconlyLight.close_square,
-                          color: isDarkMode ? Colors.grey : lightGrayBlack,
-                        )),
-                  )
-                ],
+              return GestureDetector(
+                onTap: () {
+                  // Navigate to ProductDetails when item is tapped
+                  Navigator.pushNamed(
+                    context,
+                    '/productDetails',
+                    arguments: value.wishListProducts[index].id,
+                  );
+                },
+                child: Stack(
+                  children: [
+                    cartClothCardDesign(
+                        context: context,
+                        isCart: false,
+                        isDarkMode: isDarkMode,
+                        wishListProducts: value.wishListProducts[index]),
+                    Positioned(
+                      top: 0,
+                      right: 10,
+                      child: IconButton(
+                          onPressed: () {
+                            trackPersonalization(currentUser!.uid,
+                                value.wishListProducts[index].category,
+                                "wishlist", 'decrement');
+                            value.deleteWishListItem(
+                                value.wishListProducts[index].id);
+                            value.removeWishListItems(
+                                value.wishListProducts[index].id);
+                          },
+                          icon: Icon(
+                            IconlyLight.close_square,
+                            color: isDarkMode ? Colors.grey : lightGrayBlack,
+                          )),
+                    )
+                  ],
+                ),
               );
             });
     });

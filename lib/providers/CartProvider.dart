@@ -1,3 +1,4 @@
+// cart_provider.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,8 +6,15 @@ import 'package:glamora/Guest%20Local%20Storage/CartLocalStorage.dart';
 import 'package:glamora/models/cartProducts.dart';
 
 class CartProvider with ChangeNotifier {
-  List<CartProducts> _cartItems = [] ;
-  List<CartProducts> get cartItems => _cartItems ?? [];
+  List<CartProducts> _cartItems = [];
+  List<CartProducts> get cartItems => _cartItems;
+
+  List<CartProducts> _selectedItems = [];
+  List<CartProducts> get selectedItems => _selectedItems;
+
+  bool _isSelectionMode = false;
+  bool get isSelectionMode => _isSelectionMode;
+
   int _totalAmount = 0;
   int get totalAmount => _totalAmount;
   bool _isLoading = false;
@@ -14,7 +22,6 @@ class CartProvider with ChangeNotifier {
 
   void addProductToCart(CartProducts product) {
     if (_cartItems.any((item) => item.id == product.id)) {
-      // Already exists; optionally increase quantity instead
       return;
     }
     _cartItems.add(product);
@@ -22,20 +29,99 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-
-  /// Remove from cart
   void removeProductFromCart(String id) {
     _cartItems.removeWhere((item) => item.id == id);
+    _selectedItems.removeWhere((item) => item.id == id);
     if (_cartItems.isNotEmpty) {
       _calculateTotal();
     }
+    _checkSelectionMode();
     notifyListeners();
   }
 
-  /// Total bill
   void _calculateTotal() {
     _totalAmount = _cartItems.fold(0, (sum, item) => sum + int.parse(item.total));
     notifyListeners();
+  }
+
+  // Selection methods
+  void toggleItemSelection(CartProducts item) {
+    if (_selectedItems.any((selected) => selected.id == item.id)) {
+      _selectedItems.removeWhere((selected) => selected.id == item.id);
+    } else {
+      _selectedItems.add(item);
+    }
+    _checkSelectionMode();
+    notifyListeners();
+  }
+
+  void addToSelectedItems(CartProducts item) {
+    if (!_selectedItems.any((selected) => selected.id == item.id)) {
+      _selectedItems.add(item);
+    }
+    _checkSelectionMode();
+    notifyListeners();
+  }
+
+  void removeFromSelectedItems(CartProducts item) {
+    _selectedItems.removeWhere((selected) => selected.id == item.id);
+    _checkSelectionMode();
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    _selectedItems.clear();
+    _isSelectionMode = false;
+    notifyListeners();
+  }
+
+  void _checkSelectionMode() {
+    _isSelectionMode = _selectedItems.isNotEmpty;
+  }
+
+  // Update item quantity
+  void updateItemQuantity(String itemId, int newQuantity) {
+    final itemIndex = _cartItems.indexWhere((item) => item.id == itemId);
+    if (itemIndex != -1) {
+      final item = _cartItems[itemIndex];
+      final newTotal = (item.price * newQuantity).toString();
+
+      _cartItems[itemIndex] = CartProducts(
+        id: item.id,
+        pieces: newQuantity,
+        total: newTotal,
+        title: item.title,
+        price: item.price,
+        discount: item.discount,
+        size: item.size,
+        gender: item.gender,
+        category: item.category,
+        photoUrl: item.images,
+        colorHex: item.colorHex,
+      );
+
+      _calculateTotal();
+      _updateItemInStorage(_cartItems[itemIndex]);
+      notifyListeners();
+    }
+  }
+
+  Future<void> _updateItemInStorage(CartProducts item) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection("Cart")
+            .doc(currentUser.uid)
+            .collection("items")
+            .doc(item.id)
+            .update(item.toMap());
+      } catch (e) {
+        print("Failed to update item: $e");
+      }
+    } else {
+      await CartLocalStorageService().saveCartToLocal(_cartItems);
+    }
   }
 
   Future<void> storeClothsList(CartProducts cloths) async {
@@ -53,12 +139,10 @@ class CartProvider with ChangeNotifier {
         print("Failed to upload: $e");
       }
     } else {
-      // ✅ Remove redundant addition
       await CartLocalStorageService().saveCartToLocal(_cartItems);
     }
     notifyListeners();
   }
-
 
   Future<void> fetchUserCartFromFirestore() async {
     print("Fetching cart...");
@@ -66,7 +150,9 @@ class CartProvider with ChangeNotifier {
 
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    _cartItems.clear(); // clear old list before loading
+    _cartItems.clear();
+    _selectedItems.clear();
+    _isSelectionMode = false;
 
     if (currentUser != null) {
       try {
@@ -96,25 +182,24 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-
-
-  /// Remove cart item from Firestore
   Future<void> deleteCartItem(CartProducts item) async {
     final currentUser = FirebaseAuth.instance.currentUser;
-   if(currentUser != null) {
-     try {
-       await FirebaseFirestore.instance
-           .collection("Cart")
-           .doc(currentUser.uid)
-           .collection("items")
-           .doc(item.id)
-           .delete();
-     } catch (e) {
-       print(e);
-     }
-   } else{
-     await CartLocalStorageService().removeItemFromCartLocal(item.id);
-   }
+    if(currentUser != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection("Cart")
+            .doc(currentUser.uid)
+            .collection("items")
+            .doc(item.id)
+            .delete();
+      } catch (e) {
+        print(e);
+      }
+    } else{
+      await CartLocalStorageService().removeItemFromCartLocal(item.id);
+    }
+    _selectedItems.removeWhere((selected) => selected.id == item.id);
+    _checkSelectionMode();
     notifyListeners();
   }
 }

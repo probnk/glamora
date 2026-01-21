@@ -24,6 +24,7 @@ import 'package:glamora/providers/aiChatBotProvider.dart';
 import 'package:glamora/providers/onBoardingProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'Services/LocationService.dart';
 import 'Services/OnlineStatusHandlerService.dart';
 import 'screens/Splash Screen/SplashScreen.dart';
 
