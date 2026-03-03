@@ -152,7 +152,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ProductListProvider with ChangeNotifier {
   List<ClothingProductModel> _clothsList = [];
   List<ClothingProductModel> get clothsList => _clothsList;
-
+  String? _gender;
+  String? get gender => _gender;
   List<ClothingProductModel> _recommendedCloths = [];
   List<ClothingProductModel> get recommendedCloths => _recommendedCloths;
 
@@ -234,6 +235,7 @@ class ProductListProvider with ChangeNotifier {
 
       final data = response as Map<String, dynamic>;
       final String gender = data['gender'] ?? 'Man';
+      _gender = data['gender'] ?? 'Man';
       final List<dynamic> categoriesJson = data['categories'] ?? [];
 
       // Parse categories JSON

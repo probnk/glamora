@@ -21,6 +21,7 @@ class ClothingProductModel {
   List<ProductReviewModel> reviews;
   String createdAt;
   String updatedAt;
+  int views;
 
   ClothingProductModel({
     this.id = "",
@@ -41,6 +42,7 @@ class ClothingProductModel {
     this.reviews = const [],
     this.createdAt = "",
     this.updatedAt = "",
+    this.views = 0
   });
 
   factory ClothingProductModel.fromSnapshot(DocumentSnapshot snapshot) {
@@ -69,6 +71,7 @@ class ClothingProductModel {
           .toList() ?? [],
       createdAt: data['createdAt'] ?? '',
       updatedAt: data['updatedAt'] ?? '',
+      views: data['views'] ?? 0
     );
   }
 
@@ -96,6 +99,7 @@ class ClothingProductModel {
           .toList() ?? [],
       createdAt: data['createdAt'] ?? '',
       updatedAt: data['updatedAt'] ?? '',
+      views: data['views'] ?? 0
     );
   }
 
@@ -119,6 +123,7 @@ class ClothingProductModel {
       'reviews': reviews.map((r) => r.toMap()).toList(),
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'views': views
     };
   }
 }

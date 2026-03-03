@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/BottomNavBar/BottomNavBar.dart';
 import 'package:glamora/Reuse%20Widgets/features.dart';
@@ -28,9 +29,12 @@ import 'package:provider/provider.dart';
 import '../../Reuse Widgets/loadingShimmer.dart';
 import '../../Services/Try On Service/ar_service.dart';
 import '../../Services/Try On Service/image_cache_service.dart';
+import '../../constants/app_theme.dart';
+import '../../providers/UserDetailsProvider.dart';
 import '../AR Try On/ar_try_on_screen.dart';
 import '../AR Try On/widgets/try_on_button.dart';
 import '../Order Process/OrderDetails.dart';
+import 'AI Image stlying/AIVisualization.dart';
 import 'AR Try On/CameraDetection.dart';
 
 class ProductDetails extends StatefulWidget {
@@ -53,6 +57,7 @@ class _ProductDetailsState extends State<ProductDetails> {
   var currentUser;
   bool _isARPreloaded = false;
   double _preloadProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -62,8 +67,8 @@ class _ProductDetailsState extends State<ProductDetails> {
           currentUser.uid, widget.category, "view", 'increment');
     }
   }
-  Future<void> _preloadARResources(ClothingProductModel product) async {
 
+  Future<void> _preloadARResources(ClothingProductModel product) async {
     try {
       final arService = context.read<ARService>();
       final imageCacheService = context.read<ImageCacheService>();
@@ -89,12 +94,12 @@ class _ProductDetailsState extends State<ProductDetails> {
         _isARPreloaded = true;
         _preloadProgress = 1.0;
       });
-
     } catch (e) {
       print('AR preloading failed: $e');
       // Silently fail, button will handle it
     }
   }
+
   String _formatDate(DateTime date) {
     return DateFormat('dd MMMM, yyyy').format(date);
   }
@@ -104,39 +109,70 @@ class _ProductDetailsState extends State<ProductDetails> {
   }
 
   _productDetailsAppbar({required bool isDarkMode}) {
+    final provider = Provider.of<ProductDetailsProvider>(context);
     return AppBar(
       backgroundColor: isDarkMode ? lightGrayBlack : Colors.grey.shade50,
       centerTitle: true,
       title: titleFont(
           text: "Product Details", color: isDarkMode ? white : grayBlack),
       iconTheme: IconThemeData(color: isDarkMode ? white : grayBlack),
-      leading: IconButton(
-        // In your ProductDetails screen when navigating to Try-On
-        // When navigating to TryOn
-          onPressed: () async {
-            // Request camera permission
-            var status = await Permission.camera.request();
-            if (status.isGranted) {
-              // Permission allowed, open camera screen
+      actions:  [
+          // Add this button where you want to show virtual try-on
+          IconButton(
+            onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => PoseDetectorScreen(gender: widget.gender, category: widget.category)),
+                MaterialPageRoute(
+                  builder: (context) => VirtualTryOnScreen(
+                    clothImageUrl: provider.productDetails!.front, // or item.imageUrl
+                    productTitle: provider.productDetails!.title,
+                    category: provider.productDetails!.category,// or item.name
+                  ),
+                ),
               );
-            } else {
-              // Permission denied, pop navigator (or show message)
-              if (status.isPermanentlyDenied) {
-                // If permanently denied, open app settings
-                openAppSettings();
-              } else {
-                // Just denied, you can show a snackbar or pop
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Camera permission denied')),
-                );
-                Navigator.pop(context); // Pop if this is a new screen, or handle accordingly
-              }
-            }
-          },
-          icon: Icon(IconlyBold.camera)),
+            },
+            icon: const Icon(Icons.checkroom_rounded),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: white,
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          IconButton(
+            // In your ProductDetails screen when navigating to Try-On
+            // When navigating to TryOn
+              onPressed: () async {
+                // Request camera permission
+                var status = await Permission.camera.request();
+                if (status.isGranted) {
+                  // Permission allowed, open camera screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) =>
+                        PoseDetectorScreen(
+                            gender: widget.gender, category: widget.category,products: [provider.productDetails!],)),
+                  );
+                } else {
+                  // Permission denied, pop navigator (or show message)
+                  if (status.isPermanentlyDenied) {
+                    // If permanently denied, open app settings
+                    openAppSettings();
+                  } else {
+                    // Just denied, you can show a snackbar or pop
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Camera permission denied')),
+                    );
+                    Navigator.pop(
+                        context); // Pop if this is a new screen, or handle accordingly
+                  }
+                }
+              },
+              icon: Icon(CupertinoIcons.cube_box_fill, )),
+        ],
+
       // leading: IconButton(
       //   // In your ProductDetails screen when navigating to Try-On
       //   // When navigating to TryOn
@@ -161,7 +197,10 @@ class _ProductDetailsState extends State<ProductDetails> {
       text: text,
       color: isDarkMode ? white : grayBlack,
       weight: FontWeight.w800,
-      maxWidth: MediaQuery.of(context).size.width * .2,
+      maxWidth: MediaQuery
+          .of(context)
+          .size
+          .width * .2,
     );
   }
 
@@ -188,6 +227,7 @@ class _ProductDetailsState extends State<ProductDetails> {
         }
 
         final productDetails = ClothingProductModel.fromMap(data);
+        context.read<ProductDetailsProvider>().addProductDetails(productDetails);
         return ListView(
           shrinkWrap: true,
           physics: const ScrollPhysics(),
@@ -211,7 +251,10 @@ class _ProductDetailsState extends State<ProductDetails> {
                               itemBuilder: (context, index) {
                                 return networkImagesCache(
                                   url: productDetails.images[index],
-                                  width: MediaQuery.of(context).size.width,
+                                  width: MediaQuery
+                                      .of(context)
+                                      .size
+                                      .width,
                                   height: 400,
                                 );
                               },
@@ -274,7 +317,10 @@ class _ProductDetailsState extends State<ProductDetails> {
         time = _formatTime(tempDate);
       }
     }
-    final screenWidth = getResponsiveWidth(MediaQuery.of(context).size.width);
+    final screenWidth = getResponsiveWidth(MediaQuery
+        .of(context)
+        .size
+        .width);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -373,7 +419,8 @@ class _ProductDetailsState extends State<ProductDetails> {
                   children: [
                     productTitle(
                       text:
-                          "Rs ${((productDetails.price / 100) * (100 - productDetails.discount)).toStringAsFixed(2)}",
+                      "Rs ${((productDetails.price / 100) *
+                          (100 - productDetails.discount)).toStringAsFixed(2)}",
                       color: isDarkMode ? white : grayBlack,
                     ),
                     const SizedBox(width: 5),
@@ -394,20 +441,26 @@ class _ProductDetailsState extends State<ProductDetails> {
                 ),
               smallFont(
                 text:
-                    "🔥📦 Stock:${productDetails.variants[0].sizes[context.watch<ProductDetailsProvider>().selectedSize].stock}",
+                "🔥📦 Stock:${productDetails.variants[0].sizes[context
+                    .watch<ProductDetailsProvider>()
+                    .selectedSize].stock}",
                 color: productDetails
-                            .variants[0]
-                            .sizes[context
-                                .watch<ProductDetailsProvider>()
-                                .selectedSize]
-                            .stock >
-                        10
+                    .variants[0]
+                    .sizes[context
+                    .watch<ProductDetailsProvider>()
+                    .selectedSize]
+                    .stock >
+                    10
                     ? lightGreen
                     : darkRed,
                 weight: FontWeight.w600,
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          mediumFont(
+              text: "${productDetails.views} Person Viewed this ${productDetails
+                  .category}", maxWidth: 300),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -416,74 +469,74 @@ class _ProductDetailsState extends State<ProductDetails> {
               const SizedBox(width: 5),
               productDetails.variants.first.colors.isNotEmpty
                   ? Expanded(
-                      child: Consumer<ProductDetailsProvider>(
-                        builder: (context, selectedColor, child) {
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: List.generate(
-                                productDetails.variants.first.colors.length,
-                                (index) {
-                                  final color = productDetails
-                                      .variants.first.colors[index];
-                                  final isWhiteColor = color == Colors.white;
-                                  final isBlackColor = color == Colors.black;
+                child: Consumer<ProductDetailsProvider>(
+                  builder: (context, selectedColor, child) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(
+                          productDetails.variants.first.colors.length,
+                              (index) {
+                            final color = productDetails
+                                .variants.first.colors[index];
+                            final isWhiteColor = color == Colors.white;
+                            final isBlackColor = color == Colors.black;
 
-                                  return InkWell(
-                                    onTap: () {
-                                      selectedColor.setSelectedColor(index);
-                                    },
-                                    child: Container(
-                                      margin: index > 0
-                                          ? const EdgeInsets.only(left: 5)
-                                          : EdgeInsets.zero,
-                                      width: 28,
-                                      height: 28,
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        border: Border.all(
-                                            color: Colors.grey.shade300),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Container(
-                                        margin: EdgeInsets.zero,
-                                        padding: EdgeInsets.zero,
-                                        decoration: BoxDecoration(
-                                          color: selectedColor.selectedColor ==
-                                                  index
-                                              ? Colors.white24
-                                              : Colors.transparent,
-                                          shape: BoxShape.circle,
-                                          border: selectedColor.selectedColor ==
-                                                  index
-                                              ? Border.all(
-                                                  color: isBlackColor
-                                                      ? darkGreen
-                                                      : lightGrayBlack,
-                                                  width: 2,
-                                                )
-                                              : Border.all(
-                                                  color: Colors.transparent),
-                                        ),
-                                        child:
-                                            selectedColor.selectedColor == index
-                                                ? Icon(
-                                                    Icons.done,
-                                                    color: isWhiteColor
-                                                        ? lightGrayBlack
-                                                        : white,
-                                                  )
-                                                : null,
-                                      ),
-                                    ),
-                                  );
-                                },
+                            return InkWell(
+                              onTap: () {
+                                selectedColor.setSelectedColor(index);
+                              },
+                              child: Container(
+                                margin: index > 0
+                                    ? const EdgeInsets.only(left: 5)
+                                    : EdgeInsets.zero,
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  border: Border.all(
+                                      color: Colors.grey.shade300),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Container(
+                                  margin: EdgeInsets.zero,
+                                  padding: EdgeInsets.zero,
+                                  decoration: BoxDecoration(
+                                    color: selectedColor.selectedColor ==
+                                        index
+                                        ? Colors.white24
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                    border: selectedColor.selectedColor ==
+                                        index
+                                        ? Border.all(
+                                      color: isBlackColor
+                                          ? darkGreen
+                                          : lightGrayBlack,
+                                      width: 2,
+                                    )
+                                        : Border.all(
+                                        color: Colors.transparent),
+                                  ),
+                                  child:
+                                  selectedColor.selectedColor == index
+                                      ? Icon(
+                                    Icons.done,
+                                    color: isWhiteColor
+                                        ? lightGrayBlack
+                                        : white,
+                                  )
+                                      : null,
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    )
+                    );
+                  },
+                ),
+              )
                   : const Text("None"),
             ],
           ),
@@ -495,53 +548,53 @@ class _ProductDetailsState extends State<ProductDetails> {
               const SizedBox(width: 5),
               productDetails.variants.first.sizes.isNotEmpty
                   ? Expanded(
-                      child: Consumer<ProductDetailsProvider>(
-                        builder: (context, selectedSize, child) {
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: List.generate(
-                                productDetails.variants.first.sizes.length,
-                                (index) {
-                                  final size = productDetails
-                                      .variants.first.sizes[index];
-                                  final isSelected =
-                                      selectedSize.selectedSize == index;
+                child: Consumer<ProductDetailsProvider>(
+                  builder: (context, selectedSize, child) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(
+                          productDetails.variants.first.sizes.length,
+                              (index) {
+                            final size = productDetails
+                                .variants.first.sizes[index];
+                            final isSelected =
+                                selectedSize.selectedSize == index;
 
-                                  return Padding(
-                                    padding: index > 0
-                                        ? const EdgeInsets.only(left: 5)
-                                        : EdgeInsets.zero,
-                                    child: ChoiceChip(
-                                      label: smallFont(
-                                        text: size.size,
-                                        color: isSelected
-                                            ? white
-                                            : (isDarkMode ? white : grayBlack),
-                                        weight: FontWeight.w500,
-                                      ),
-                                      backgroundColor: isDarkMode
-                                          ? lightGrayBlack
-                                          : Colors.grey.shade100,
-                                      disabledColor: Colors.grey.shade100,
-                                      selected: isSelected,
-                                      checkmarkColor: isDarkMode
-                                          ? lightGrayBlack
-                                          : lightGreen,
-                                      selectedColor:
-                                          isDarkMode ? lightGreen : grayBlack,
-                                      onSelected: (selected) {
-                                        selectedSize.setSelectedSize(index);
-                                      },
-                                    ),
-                                  );
+                            return Padding(
+                              padding: index > 0
+                                  ? const EdgeInsets.only(left: 5)
+                                  : EdgeInsets.zero,
+                              child: ChoiceChip(
+                                label: smallFont(
+                                  text: size.size,
+                                  color: isSelected
+                                      ? white
+                                      : (isDarkMode ? white : grayBlack),
+                                  weight: FontWeight.w500,
+                                ),
+                                backgroundColor: isDarkMode
+                                    ? lightGrayBlack
+                                    : Colors.grey.shade100,
+                                disabledColor: Colors.grey.shade100,
+                                selected: isSelected,
+                                checkmarkColor: isDarkMode
+                                    ? lightGrayBlack
+                                    : lightGreen,
+                                selectedColor:
+                                isDarkMode ? lightGreen : grayBlack,
+                                onSelected: (selected) {
+                                  selectedSize.setSelectedSize(index);
                                 },
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    )
+                    );
+                  },
+                ),
+              )
                   : const Text("No sizes available"),
             ],
           ),
@@ -551,9 +604,10 @@ class _ProductDetailsState extends State<ProductDetails> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => Rating(
-                    reviews: productDetails.reviews,
-                  ),
+                  builder: (context) =>
+                      Rating(
+                        reviews: productDetails.reviews,
+                      ),
                 ),
               );
             },
@@ -569,7 +623,9 @@ class _ProductDetailsState extends State<ProductDetails> {
                         const SizedBox(width: 8),
                         productTitle(
                           text:
-                              "${_calculateAverageRating(productDetails.reviews).toStringAsFixed(1)} (${productDetails.reviews.length} reviews)",
+                          "${_calculateAverageRating(productDetails.reviews)
+                              .toStringAsFixed(1)} (${productDetails.reviews
+                              .length} reviews)",
                           color: isDarkMode ? white : grayBlack,
                         ),
                       ],
@@ -603,7 +659,7 @@ class _ProductDetailsState extends State<ProductDetails> {
                                   const SizedBox(width: 16),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       productTitle(
                                         text: productDetails
@@ -644,14 +700,15 @@ class _ProductDetailsState extends State<ProductDetails> {
                       ),
                     ),
                   ),
-                ] else ...[
-                  const SizedBox(height: 16),
-                  smallFont(
-                    text: "No reviews yet",
-                    color: Colors.grey,
-                    weight: FontWeight.w600,
-                  ),
-                ],
+                ] else
+                  ...[
+                    const SizedBox(height: 16),
+                    smallFont(
+                      text: "No reviews yet",
+                      color: Colors.grey,
+                      weight: FontWeight.w600,
+                    ),
+                  ],
               ],
             ),
           ),
@@ -755,8 +812,8 @@ class _ProductDetailsState extends State<ProductDetails> {
               onTap: value.quantity == 1 || stock == 0
                   ? null
                   : () {
-                      value.subtractValue();
-                    },
+                value.subtractValue();
+              },
               child: Container(
                 width: 40,
                 height: 45,
@@ -785,8 +842,8 @@ class _ProductDetailsState extends State<ProductDetails> {
               onTap: value.quantity == 10 || value.quantity >= stock
                   ? null
                   : () {
-                      value.addValue();
-                    },
+                value.addValue();
+              },
               child: Container(
                 width: 40,
                 height: 45,
@@ -830,7 +887,7 @@ class _ProductDetailsState extends State<ProductDetails> {
     final cartProvider = context.read<CartProvider>();
 
     final int totalPrice = (productDetailsProvider.quantity *
-            ((productDetails.price / 100) * (100 - productDetails.discount)))
+        ((productDetails.price / 100) * (100 - productDetails.discount)))
         .toInt();
     final cartProduct = CartProducts(
       id: productDetails.id,
@@ -876,83 +933,86 @@ class _ProductDetailsState extends State<ProductDetails> {
       final stock = productDetails.variants[0].sizes[selectedSize].stock;
       return stock == 0
           ? Container(
-              width: MediaQuery.of(context).size.width,
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
+        width: MediaQuery
+            .of(context)
+            .size
+            .width,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey,
+        ),
+        child: mediumFont(
+          text: "Out of Stock",
+          color: isDarkMode ? grayBlack : white,
+        ),
+      )
+          : Row(
+        children: [
+          InkWell(
+            onTap: stock == 0
+                ? null
+                : () async {
+              bool isAlreadyInCart =
+              _isItemAlreadyInCart(productDetails);
+
+              if (!isAlreadyInCart) {
+                _addProductToCart(productDetails);
+              } else {
+                _showItemAlreadyInCartSnackbar();
+              }
+            },
+            child: Container(
+              margin:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 10, horizontal: 40),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: Colors.grey,
+                color: isDarkMode ? white : grayBlack,
               ),
               child: mediumFont(
-                text: "Out of Stock",
+                text: "Add to Cart",
                 color: isDarkMode ? grayBlack : white,
               ),
-            )
-          : Row(
-              children: [
-                InkWell(
-                  onTap: stock == 0
-                      ? null
-                      : () async {
-                          bool isAlreadyInCart =
-                              _isItemAlreadyInCart(productDetails);
+            ),
+          ),
+          InkWell(
+            onTap: stock == 0
+                ? null
+                : () async {
+              bool isAlreadyInCart =
+              _isItemAlreadyInCart(productDetails);
 
-                          if (!isAlreadyInCart) {
-                            _addProductToCart(productDetails);
-                          } else {
-                            _showItemAlreadyInCartSnackbar();
-                          }
-                        },
-                  child: Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 40),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: isDarkMode ? white : grayBlack,
-                    ),
-                    child: mediumFont(
-                      text: "Add to Cart",
-                      color: isDarkMode ? grayBlack : white,
-                    ),
-                  ),
+              if (!isAlreadyInCart) {
+                // _addProductToCart(productDetails);
+                _buyNow(productDetails);
+              }
+            },
+            child: Container(
+              margin:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 10, horizontal: 40),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: isDarkMode
+                      ? [lightOrange, darkOrange]
+                      : [lightPurple, lightBlue],
                 ),
-                InkWell(
-                  onTap: stock == 0
-                      ? null
-                      : () async {
-                          bool isAlreadyInCart =
-                              _isItemAlreadyInCart(productDetails);
-
-                          if (!isAlreadyInCart) {
-                            _addProductToCart(productDetails);
-                            _buyNow(productDetails);
-                          }
-                        },
-                  child: Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 40),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: isDarkMode
-                            ? [lightOrange, darkOrange]
-                            : [lightPurple, lightBlue],
-                      ),
-                    ),
-                    child: mediumFont(
-                      text: "Buy Now",
-                      color: white,
-                    ),
-                  ),
-                ),
-              ],
-            );
+              ),
+              child: mediumFont(
+                text: "Buy Now",
+                color: white,
+              ),
+            ),
+          ),
+        ],
+      );
     });
   }
 
@@ -960,12 +1020,13 @@ class _ProductDetailsState extends State<ProductDetails> {
     final provider = context.read<ProductDetailsProvider>();
     final cartProvider = context.read<CartProvider>();
     final user = FirebaseAuth.instance.currentUser;
+    context.read<UserDetailsProvider>().fetchUserDetails();
 
     final cartProduct = CartProducts(
       id: productDetails.id,
       pieces: provider.quantity,
       total: (provider.quantity *
-              ((productDetails.price / 100) * (100 - productDetails.discount)))
+          ((productDetails.price / 100) * (100 - productDetails.discount)))
           .toInt()
           .toString(),
       title: productDetails.title,
@@ -982,24 +1043,27 @@ class _ProductDetailsState extends State<ProductDetails> {
     cartProvider.storeClothsList(cartProduct);
     provider.resetQuantity();
     // Track personalization
-    if (user != null) {
-      trackPersonalization(user.uid, widget.category, "order", 'increment');
-    }
+    // if (user != null) {
+    //   trackPersonalization(user.uid, widget.category, "order", 'increment');
+    // }
 
     // Navigate directly to OrderDetails with single item
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => OrderDetails(
-          itemsToCheckout: [cartProduct],
-        ),
+        builder: (context) =>
+            OrderDetails(
+              itemsToCheckout: [cartProduct],
+            ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
+    final isDarkMode = Provider
+        .of<DarkModeProvider>(context)
+        .isDarkMode;
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -1039,7 +1103,10 @@ class _ProductDetailsState extends State<ProductDetails> {
         _preloadARResources(productDetails);
         return Scaffold(
           bottomSheet: Container(
-            height: MediaQuery.of(context).size.height * .15,
+            height: MediaQuery
+                .of(context)
+                .size
+                .height * .15,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isDarkMode ? lightGrayBlack : Colors.grey.shade200,

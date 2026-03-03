@@ -1,4 +1,3 @@
-// order_details.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -97,15 +96,17 @@ class _OrderDetailsState extends State<OrderDetails> {
       var total = widget.itemsToCheckout.fold(0, (sum, item) => sum + int.parse(item.total));
 
       for (int i = 0; i < widget.itemsToCheckout.length; i++) {
-        if(currentUser != null){
+        if (currentUser != null) {
           trackPersonalization(FirebaseAuth.instance.currentUser!.uid,
-              widget.itemsToCheckout[i].category, "order",'increment');
+              widget.itemsToCheckout[i].category, "order", 'increment');
+          trackPersonalization(FirebaseAuth.instance.currentUser!.uid,
+              widget.itemsToCheckout[i].category, "cart", 'decrement');
           cartItems.deleteCartItem(widget.itemsToCheckout[i]);
         }
       }
 
       SendNotificationService.sendNotificationUsingApi(
-          body: "Order Id: $orderId with Total Bill ${total.toString()}",
+          body: "Order Id: $orderId with Total Bill of PKR ${total.toString()}",
           title: "New Order Placed!",
           data: {"screen": "notification"},
           topic: 'Orders');
@@ -175,38 +176,52 @@ class _OrderDetailsState extends State<OrderDetails> {
   }
 
   _orderDetailsBody({required bool isDarkMode}) {
-    return ListView(
-      shrinkWrap: true,
-      physics: ScrollPhysics(),
-      children: [
-        _orderItemsList(isDarkMode: isDarkMode),
-        SizedBox(height: 10),
-        _customerInfo(isDarkMode: isDarkMode),
-        SizedBox(height: 10),
-        Divider(color: Colors.grey.shade300),
-        _orderInfo(isDarkMode: isDarkMode),
-        Padding(
-            padding: EdgeInsets.only(left: 16),
-            child: productTitle(
-                text: "Payment Method: Cash On Delivery (COD)",
-                color: isDarkMode ? white : grayBlack)),
-        Divider(color: isDarkMode ? Colors.grey : Colors.grey.shade300),
-        SizedBox(height: 20),
-      ],
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, child) {
+        return ListView(
+          shrinkWrap: true,
+          physics: ScrollPhysics(),
+          children: [
+            _orderItemsList(isDarkMode: isDarkMode),
+            SizedBox(height: 10),
+            _customerInfo(isDarkMode: isDarkMode),
+            SizedBox(height: 10),
+            Divider(color: Colors.grey.shade300),
+            _orderInfo(isDarkMode: isDarkMode),
+            Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: productTitle(
+                    text: "Payment Method: Cash On Delivery (COD)",
+                    color: isDarkMode ? white : grayBlack)),
+            Divider(color: isDarkMode ? Colors.grey : Colors.grey.shade300),
+            SizedBox(height: 30),
+          ],
+        );
+      },
     );
   }
 
   _orderItemsList({required bool isDarkMode}) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      itemCount: widget.itemsToCheckout.length,
-      itemBuilder: (context, index) {
-        return cartClothCardDesign(
-          cartItems: widget.itemsToCheckout[index],
-          context: context,
-          isCart: true,
-          isDarkMode: isDarkMode,
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, child) {
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: widget.itemsToCheckout.length,
+          itemBuilder: (context, index) {
+            // Get the current item from cart provider to ensure we have latest data
+            final currentItem = cartProvider.cartItems.firstWhere(
+                  (item) => item.id == widget.itemsToCheckout[index].id,
+              orElse: () => widget.itemsToCheckout[index],
+            );
+
+            return cartClothCardDesign(
+              cartItems: currentItem,
+              context: context,
+              isCart: true,
+              isDarkMode: isDarkMode,
+            );
+          },
         );
       },
     );
@@ -250,9 +265,7 @@ class _OrderDetailsState extends State<OrderDetails> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
                 _infoLine(user.fullName),
                 _infoLine(user.phoneNumber),
                 _infoLine(user.email ?? ""),
@@ -278,69 +291,62 @@ class _OrderDetailsState extends State<OrderDetails> {
   }
 
   Widget _orderInfo({required bool isDarkMode}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDarkMode ? Colors.grey : grayBlack,
-            width: 1.2,
+    return Consumer<CartProvider>(
+      builder: (context, cartProvider, child) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey : grayBlack,
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleFont(
+                  text: "Order Summary",
+                  color: isDarkMode ? white : grayBlack,
+                ),
+                const SizedBox(height: 12),
+                _orderRow(
+                  "Sub Total",
+                  "Rs ${_calculateTotal()}",
+                  isDarkMode,
+                ),
+                const SizedBox(height: 6),
+                _orderRow(
+                  "Shipping",
+                  "Free Delivery",
+                  isDarkMode,
+                  highlight: true,
+                ),
+                const SizedBox(height: 6),
+                _orderRow(
+                  "Coupon Discount",
+                  "0%",
+                  isDarkMode,
+                ),
+                const SizedBox(height: 12),
+                Divider(
+                  color: isDarkMode ? Colors.white24 : Colors.black26,
+                  thickness: 1,
+                ),
+                const SizedBox(height: 12),
+                _orderRow(
+                  "Total Amount",
+                  "Rs ${_calculateTotal()}",
+                  isDarkMode,
+                  isTotal: true,
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            titleFont(
-              text: "Order Summary",
-              color: isDarkMode ? white : grayBlack,
-            ),
-
-            const SizedBox(height: 12),
-
-            _orderRow(
-              "Sub Total",
-              "Rs ${_calculateTotal()}",
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 6),
-
-            _orderRow(
-              "Shipping",
-              "Free Delivery",
-              isDarkMode,
-              highlight: true,
-            ),
-
-            const SizedBox(height: 6),
-
-            _orderRow(
-              "Coupon Discount",
-              "0%",
-              isDarkMode,
-            ),
-
-            const SizedBox(height: 12),
-
-            Divider(
-              color: isDarkMode ? Colors.white24 : Colors.black26,
-              thickness: 1,
-            ),
-
-            const SizedBox(height: 12),
-
-            _orderRow(
-              "Total Amount",
-              "Rs ${_calculateTotal()}",
-              isDarkMode,
-              isTotal: true,
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -366,7 +372,8 @@ class _OrderDetailsState extends State<OrderDetails> {
             color: Colors.green.withOpacity(0.15),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: mediumFont(text: value,weight: FontWeight.w600,color: Colors.green),
+          child: mediumFont(
+              text: value, weight: FontWeight.w600, color: Colors.green),
         )
             : smallFont(
           text: value,
@@ -379,22 +386,21 @@ class _OrderDetailsState extends State<OrderDetails> {
     );
   }
 
-
   int _calculateTotal() {
-    return widget.itemsToCheckout.fold(0, (sum, item) => sum + int.parse(item.total));
-  }
+    // Calculate total from latest cart items
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    int total = 0;
 
-  _orderInfoRows({
-    required String title,
-    required String price,
-    required bool isDarkMode}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        smallFont(text: title, color: isDarkMode ? white : grayBlack),
-        smallFont(text: price, color: Colors.grey)
-      ],
-    );
+    for (var checkoutItem in widget.itemsToCheckout) {
+      // Find the current item in cart to get updated values
+      final currentItem = cartProvider.cartItems.firstWhere(
+            (item) => item.id == checkoutItem.id,
+        orElse: () => checkoutItem,
+      );
+      total += int.parse(currentItem.total);
+    }
+
+    return total;
   }
 
   _confirmButton(bool isDarkMode) {

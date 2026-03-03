@@ -1,4 +1,3 @@
-// cart_provider.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -79,12 +78,23 @@ class CartProvider with ChangeNotifier {
     _isSelectionMode = _selectedItems.isNotEmpty;
   }
 
-  // Update item quantity
+  // Calculate actual price considering discount
+  int _calculateActualPrice(int price, int discount) {
+    if (discount > 0) {
+      return ((price / 100) * (100 - discount)).round();
+    }
+    return price;
+  }
+
+  // Update item quantity - FIXED VERSION
   void updateItemQuantity(String itemId, int newQuantity) {
     final itemIndex = _cartItems.indexWhere((item) => item.id == itemId);
     if (itemIndex != -1) {
       final item = _cartItems[itemIndex];
-      final newTotal = (item.price * newQuantity).toString();
+
+      // Calculate actual price with discount
+      final actualPrice = _calculateActualPrice(item.price, item.discount);
+      final newTotal = (actualPrice * newQuantity).toString();
 
       _cartItems[itemIndex] = CartProducts(
         id: item.id,
@@ -170,7 +180,7 @@ class CartProvider with ChangeNotifier {
       } catch (error) {
         print("Error fetching user cart: $error");
         _isLoading = false;
-      } finally{
+      } finally {
         _isLoading = false;
       }
     } else {
@@ -184,7 +194,7 @@ class CartProvider with ChangeNotifier {
 
   Future<void> deleteCartItem(CartProducts item) async {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if(currentUser != null) {
+    if (currentUser != null) {
       try {
         await FirebaseFirestore.instance
             .collection("Cart")
@@ -195,7 +205,7 @@ class CartProvider with ChangeNotifier {
       } catch (e) {
         print(e);
       }
-    } else{
+    } else {
       await CartLocalStorageService().removeItemFromCartLocal(item.id);
     }
     _selectedItems.removeWhere((selected) => selected.id == item.id);

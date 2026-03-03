@@ -1,53 +1,69 @@
 import 'package:flutter/cupertino.dart';
 
-class ProductDetailsProvider with ChangeNotifier{
-bool _isCart = false;
-bool get isCart => _isCart;
+import '../models/productModel.dart';
 
-int _selectedColor  = 0;
-int get selectedColor => _selectedColor;
+class ProductDetailsProvider with ChangeNotifier {
+  bool _isCart = false;
 
-int _selectedSize  = 0;
-int get selectedSize => _selectedSize;
+  bool get isCart => _isCart;
 
-int _selectedImage = 0;
-int get selectedImage => _selectedImage;
+  int _selectedColor = 0;
 
-int _quantity = 1;
-int get quantity => _quantity;
+  int get selectedColor => _selectedColor;
 
-void resetQuantity() {
-  _quantity = 1;
-  notifyListeners();
-}
+  int _selectedSize = 0;
 
-void addValue() {
-  _quantity = _quantity + 1;
-  notifyListeners();
-}
+  int get selectedSize => _selectedSize;
 
-void subtractValue() {
-  _quantity = _quantity - 1;
-  notifyListeners();
-}
+  int _selectedImage = 0;
 
-void setIsCartProduct() {
-  _isCart = !_isCart;
-  notifyListeners();
+  int get selectedImage => _selectedImage;
+
+  int _quantity = 1;
+
+  int get quantity => _quantity;
+
+  ClothingProductModel? _productDetails;
+
+  ClothingProductModel? get productDetails => _productDetails;
+
+  void resetQuantity() {
+    _quantity = 1;
+    notifyListeners();
   }
 
-void setSelectedImage(int image){
+  void addValue() {
+    _quantity = _quantity + 1;
+    notifyListeners();
+  }
+
+  void subtractValue() {
+    _quantity = _quantity - 1;
+    notifyListeners();
+  }
+
+  void setIsCartProduct() {
+    _isCart = !_isCart;
+    notifyListeners();
+  }
+
+  void setSelectedImage(int image) {
     _selectedImage = image;
     notifyListeners();
   }
 
-void setSelectedColor(int index){
+  void setSelectedColor(int index) {
     _selectedColor = index;
     notifyListeners();
   }
 
-void setSelectedSize(int index){
-  _selectedSize = index;
-  notifyListeners();
-}
+  void setSelectedSize(int index) {
+    _selectedSize = index;
+    notifyListeners();
+  }
+
+  void addProductDetails(ClothingProductModel product){
+    _productDetails = product;
+    notifyListeners();
+  }
 }

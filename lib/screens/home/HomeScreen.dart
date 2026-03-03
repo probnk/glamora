@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Schedule fetchPersonalizedProducts after build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductListProvider>().fetchPersonalizedProducts();
-      storeUserLocation();
+      storeUserLocation(context);
     });
   }
 

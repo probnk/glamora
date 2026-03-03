@@ -1,9 +1,12 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:glamora/providers/ProductListProvider.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
-Future<void> storeUserLocation() async {
+Future<void> storeUserLocation(BuildContext context) async {
   try {
     // Request location permission
     LocationPermission permission = await Geolocator.requestPermission();
@@ -36,11 +39,12 @@ Future<void> storeUserLocation() async {
 
     // Generate unique key for each entry
     String? key = ref.push().key;
-
+    final genderProvider = Provider.of<ProductListProvider>(context,listen: false);
     // Store data
     await ref.child(key!).set({
       'city': city,
       'country': country,
+      'gender':genderProvider.gender,
       'timestamp': timestamp,
     });
 

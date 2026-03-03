@@ -16,7 +16,7 @@ import '../../providers/UserProvider.dart';
 
 class GenderCategoryScreen extends StatelessWidget {
   GenderCategoryScreen({Key? key}) : super(key: key);
-
+  
   final TextEditingController nameController = TextEditingController();
   final List<String> genders = ['Man', 'Woman'];
   final List<String> categories = ['T-Shirt', 'Pant', 'Hoodie'];
@@ -100,7 +100,7 @@ class GenderCategoryScreen extends StatelessWidget {
         }
 
         // Safely handle email for anonymous users
-        final String userEmail = currentUser.email ?? 'anonymous_${currentUser.uid}@example.com';
+        final String? userEmail = currentUser.email ?? 'anonymous_${currentUser.uid}@example.com';
 
         // Call the Edge Function
         final response = await Supabase.instance.client.functions.invoke(
@@ -112,7 +112,7 @@ class GenderCategoryScreen extends StatelessWidget {
             'name': nameController.text.isEmpty
                 ? currentUser.displayName ?? 'Unknown'
                 : nameController.text,
-            'email': userEmail,
+            'email': userEmail!,
             'picture': imageUrl?.isNotEmpty ?? false
                 ? imageUrl
                 : currentUser.photoURL ?? 'https://www.w3schools.com/w3images/avatar2.png',
@@ -124,7 +124,7 @@ class GenderCategoryScreen extends StatelessWidget {
 
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         userProvider.setUser(
-          email: userEmail,
+          email: userEmail!,
           name: nameController.text.isEmpty
               ? currentUser.displayName ?? 'Unknown'
               : nameController.text,
@@ -160,13 +160,12 @@ class GenderCategoryScreen extends StatelessWidget {
       loadingProvider.setSubmitLoading(false);
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Provider.of<DarkModeProvider>(context).isDarkMode;
     final genderProvider = Provider.of<GenderCategoryProvider>(context);
     final isLoading = Provider.of<GenderCategoryProvider>(context).isLoading;
-
     return Scaffold(
       bottomSheet: _bottomSubmitButton(context, isDarkMode: isDarkMode),
       backgroundColor: isDarkMode ? grayBlack : white,
