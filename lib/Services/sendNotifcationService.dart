@@ -10,6 +10,10 @@ class SendNotificationService {
     required String? body,
     required Map<String, dynamic>? data,
     required String topic,
+    required String sound,
+    required String icon,
+    required String channel,
+    required String type
   }) async {
     String serverKey = await GetServerKey().getServerKeyToken();
 
@@ -28,6 +32,7 @@ class SendNotificationService {
           "body": body,
         },
         "data": {
+          "type": type,
           "chat_id": data?['chat_id'] ?? topic,
           "sender": data?['sender'] ?? "Unknown",
           "chat_name": data?['chat_name'] ?? title ?? "Chat",
@@ -35,9 +40,9 @@ class SendNotificationService {
         },
         "android": {
           "notification": {
-            "sound": "money",
-            "icon": "@drawable/ic_stat_icon",
-            "channel_id": "chat_channel"
+            "sound": sound,
+            "icon": icon,
+            "channel_id": channel
           }
         },
         "topic": topic

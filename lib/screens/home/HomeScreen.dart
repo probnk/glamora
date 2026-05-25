@@ -43,8 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (currentUser != null) {
       notificationService.requestNotificationPermission();
       notificationService.getDeviceToken();
-      notificationService.firebaseInit(context);
-      notificationService.setupInteractMessage(context);
       FirebaseMessaging.instance.subscribeToTopic(currentUser.uid);
     }
 

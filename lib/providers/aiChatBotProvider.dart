@@ -10,40 +10,64 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:glamora/models/productModel.dart';
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserSentiment { neutral, frustrated, happy, confused, angry }
+
+enum EscalationState { none, suggested, escalated }
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 class AIChatBotProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final rtdb.FirebaseDatabase _rtdb = rtdb.FirebaseDatabase.instance;
-  static const String _apiUrl = "https://api.deepseek.com/chat/completions";
-  static const String _embeddingsApiUrl = "https://api.deepseek.com/embeddings";
-  String? _apiKey = dotenv.env['DEEPSEEK_API_KEY'];
 
-  // Chat state
+  static const String _apiUrl = "https://api.deepseek.com/chat/completions";
+  final String? _apiKey = dotenv.env['DEEPSEEK_API_KEY'];
+
+  // ── Chat State ──────────────────────────────────────────────────────────────
   List<Map<String, dynamic>> _messages = [];
+
+  /// Full turn-by-turn history sent to DeepSeek on every call.
+  /// Solves "contextual rigidity" [7] — maintains context beyond 3 turns.
+  final List<Map<String, String>> _conversationHistory = [];
+
   String? _conversationId;
   bool _isLoading = false;
+  bool _isCancelled = false;
+
+  // ── Products (in-memory catalogue for text-based responses) ─────────────────
   List<ClothingProductModel> _allProducts = [];
+
+  // ── Search History ──────────────────────────────────────────────────────────
   List<String> _searchHistory = [];
-  List<String> _popularSearches = ["T-Shirt", "Hoodie", "Pant", "Cotton Dress", "Winter Collection"];
+  final List<String> _popularSearches = [
+    "T-Shirt",
+    "Hoodie",
+    "Pant",
+    "Cotton Dress",
+    "Winter Collection",
+  ];
 
-  // Search context - stores user preferences
-  String? _currentGender;
-  String? _currentCategory;
-  double? _currentBudget;
-  String? _currentColor;
-  String? _currentSize;
-  String? _currentStyle;
-
-  // Filters
+  // ── Advanced Filters (set via UI) ───────────────────────────────────────────
   String? filterGender;
   String? filterCategory;
   String? filterColorName;
   String? filterSize;
   double? filterMaxPrice;
 
-  // API request control
-  Completer<void>? _requestCompleter;
+  // ── Sentiment / Escalation ──────────────────────────────────────────────────
+  // Sentiment detected INSIDE the single DeepSeek call — no second API call.
+  // Solves the "Emotional Intelligence Gap" [4] without latency penalty.
+  UserSentiment _currentSentiment = UserSentiment.neutral;
+  EscalationState _escalationState = EscalationState.none;
 
-  // Getters
+  /// Consecutive frustrated/angry turns before escalation is offered.
+  /// Threshold = 3 to avoid premature escalation (23% frustration increase [4]).
+  int _frustratedTurnCount = 0;
+  static const int _escalationThreshold = 3;
+
+  // ── Getters ─────────────────────────────────────────────────────────────────
   List<Map<String, dynamic>> get messages => _messages;
   bool get isLoading => _isLoading;
   List<String> get searchHistory => _searchHistory;
@@ -53,354 +77,265 @@ class AIChatBotProvider with ChangeNotifier {
   String? get getFilterColorName => filterColorName;
   String? get getFilterSize => filterSize;
   double? get getFilterMaxPrice => filterMaxPrice;
+  UserSentiment get currentSentiment => _currentSentiment;
+  EscalationState get escalationState => _escalationState;
+
+  /// True when the last bot message should show the "Chat with Seller" button.
+  bool get showEscalationButton =>
+      _escalationState == EscalationState.suggested;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════════════════════════════════════════════
 
   Future<void> initConversation() async {
-    _conversationId = FirebaseAuth.instance.currentUser?.uid;
-    if (_conversationId == null) {
-      _conversationId = 'anon_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
-    }
+    _conversationId = FirebaseAuth.instance.currentUser?.uid ??
+        'anon_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
 
-    await _loadPreviousConversation();
     await _loadAllProducts();
+    await _loadPreviousConversation();
 
     if (_messages.isEmpty) {
-      _addSystemMessage();
+      _addWelcomeMessage();
     }
 
     _loadSearchHistory();
     notifyListeners();
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════
+  // LOAD PRODUCTS FROM FIRESTORE
+  // ══════════════════════════════════════════════════════════════════════════════
+
   Future<void> _loadAllProducts() async {
     try {
       _isLoading = true;
       notifyListeners();
-
-      List<String> genders = ['Man', 'Woman'];
-      List<String> categories = ['T-Shirt', 'Hoodie', 'Pant'];
-
       _allProducts.clear();
 
-      for (String gender in genders) {
-        for (String category in categories) {
-          try {
-            final collection = _firestore.collection('Cloths').doc(gender).collection(category);
-            final snapshot = await collection.get();
+      const genders = ['Man', 'Woman'];
+      const categories = ['T-Shirt', 'Hoodie', 'Pant'];
 
-            if (snapshot.docs.isNotEmpty) {
-              _allProducts.addAll(
-                snapshot.docs.map((doc) {
-                  final product = ClothingProductModel.fromSnapshot(doc);
-                  product.gender = gender; // Ensure gender is set
-                  product.category = category; // Ensure category is set
-                  return product;
-                }),
-              );
+      for (final gender in genders) {
+        for (final category in categories) {
+          try {
+            final snap = await _firestore
+                .collection('Cloths')
+                .doc(gender)
+                .collection(category)
+                .get();
+            for (final doc in snap.docs) {
+              final p = ClothingProductModel.fromSnapshot(doc);
+              p.gender = gender;
+              p.category = category;
+              _allProducts.add(p);
             }
           } catch (e) {
-            print("Error loading $gender $category: $e");
+            debugPrint("Error loading $gender $category: $e");
           }
         }
       }
-
-      print("Loaded ${_allProducts.length} products from Firestore");
+      debugPrint("Loaded ${_allProducts.length} products");
+    } finally {
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      print("Error loading products: $e");
     }
   }
 
-  void _extractPreferencesFromQuery(String query) {
-    final lowerQuery = query.toLowerCase();
-
-    // Extract gender
-    if (lowerQuery.contains('man') || lowerQuery.contains('men') ||
-        lowerQuery.contains('male') || lowerQuery.contains('mard') ||
-        lowerQuery.contains('larki') || lowerQuery.contains('boy')) {
-      _currentGender = 'Man';
-    } else if (lowerQuery.contains('woman') || lowerQuery.contains('women') ||
-        lowerQuery.contains('female') || lowerQuery.contains('aurat') ||
-        lowerQuery.contains('larki') || lowerQuery.contains('girl')) {
-      _currentGender = 'Woman';
-    } else if (lowerQuery.contains('unisex') || lowerQuery.contains('both')) {
-      _currentGender = 'Unisex';
-    }
-
-    // Extract category with Roman Urdu support
-    if (lowerQuery.contains('t-shirt') || lowerQuery.contains('tshirt') ||
-        lowerQuery.contains('tee') || lowerQuery.contains('t zirts') ||
-        lowerQuery.contains('t sharat') || lowerQuery.contains('shirt') ||
-        lowerQuery.contains('kamiz')) {
-      _currentCategory = 'T-Shirt';
-    } else if (lowerQuery.contains('hoodie') || lowerQuery.contains('hoody') ||
-        lowerQuery.contains('hoodi') || lowerQuery.contains('hood')) {
-      _currentCategory = 'Hoodie';
-    } else if (lowerQuery.contains('pant') || lowerQuery.contains('pants') ||
-        lowerQuery.contains('trouser') || lowerQuery.contains('shalwar') ||
-        lowerQuery.contains('patloon') || lowerQuery.contains('jeans')) {
-      _currentCategory = 'Pant';
-    }
-
-    // Extract color with Urdu support
-    final colorMap = {
-      'red': ['lal', 'surkh'],
-      'blue': ['neela', 'blue'],
-      'green': ['hara', 'sabz'],
-      'black': ['kala', 'siyah'],
-      'white': ['safaid', 'safed'],
-      'gray': ['grey', 'dhoosar'],
-      'pink': ['gulabi', 'pink'],
-      'purple': ['jamni', 'purple'],
-      'yellow': ['peela', 'zard'],
-      'orange': ['narangi', 'orange'],
-      'brown': ['brown', 'bhoora'],
-    };
-
-    for (final entry in colorMap.entries) {
-      if (entry.value.any((word) => lowerQuery.contains(word))) {
-        _currentColor = entry.key;
-        break;
-      }
-    }
-
-    // Extract size with Urdu support
-    final sizeMap = {
-      'XS': ['xs', 'extra small', 'bohat chota'],
-      'S': ['s', 'small', 'chota', 'sab sy chota'],
-      'M': ['m', 'medium', 'darmiyana'],
-      'L': ['l', 'large', 'bara'],
-      'XL': ['xl', 'extra large', 'bohat bara'],
-      'XXL': ['xxl', 'double xl', 'do barha'],
-    };
-
-    for (final entry in sizeMap.entries) {
-      if (entry.value.any((word) => lowerQuery.contains(word))) {
-        _currentSize = entry.key;
-        break;
-      }
-    }
-
-    // Extract budget
-    final budgetRegex = RegExp(r'(?:rs\.?|pkr|₹|price|daam)?\s*(\d{1,7}(?:,\d{3})*(?:\.\d+)?)', caseSensitive: false);
-    final matches = budgetRegex.allMatches(query);
-
-    for (final match in matches) {
-      final raw = match.group(1)?.replaceAll(',', '');
-      final value = double.tryParse(raw ?? '');
-      if (value != null && value > 0) {
-        _currentBudget = value;
-        break;
-      }
-    }
-
-    // Extract style
-    final styles = ['casual', 'formal', 'sporty', 'party', 'office', 'traditional', 'western'];
-    for (final style in styles) {
-      if (lowerQuery.contains(style)) {
-        _currentStyle = style;
-        break;
-      }
-    }
-
-    // Save context to Firestore
-    _updateFirestoreConversation();
-  }
+  // ══════════════════════════════════════════════════════════════════════════════
+  // SEND MESSAGE — single entry point, ONE DeepSeek call total
+  // ══════════════════════════════════════════════════════════════════════════════
 
   Future<void> sendMessage(String text) async {
-    if (text.isEmpty || _isLoading) return;
+    if (text.trim().isEmpty || _isLoading) return;
 
-    _requestCompleter = Completer<void>();
+    _isCancelled = false;
     _addUserMessage(text);
-    await _saveMessageToRTDB(text, true);
+    _saveMessageToRTDB(text, true); // fire-and-forget
 
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Extract preferences from current query
-      _extractPreferencesFromQuery(text);
+      // ONE DeepSeek call: intent + reply + filters + sentiment + product_summary
+      final aiDecision = await _getStructuredAIDecision(text);
 
-      // Check if this is a product-related query
-      if (_isProductQuery(text)) {
-        await _handleProductQuery(text);
-      } else if (_isStorePolicyQuery(text)) {
-        await _handleStorePolicyQuery(text);
-      } else if (_isOrderQuery(text)) {
-        await _handleOrderQuery(text);
+      if (_isCancelled) return;
+
+      final intent = aiDecision['intent'] as String? ?? 'general';
+      final reply = aiDecision['reply'] as String? ?? '';
+      final sentimentStr = aiDecision['sentiment'] as String? ?? 'neutral';
+
+      // Update sentiment — no extra API call needed
+      _updateSentiment(sentimentStr);
+
+      // Check escalation AFTER updating sentiment
+      if (_shouldEscalate()) {
+        _handleEscalation();
+        return;
+      }
+
+      if (intent == 'product_search') {
+        // Build a text-only product summary using local data + AI reply
+        final filters =
+        Map<String, dynamic>.from(aiDecision['filters'] as Map? ?? {});
+        final products = await _searchProducts(filters);
+
+        if (products.isNotEmpty) {
+          // Compose a rich text response describing found products
+          final textSummary = _buildProductTextSummary(reply, products);
+          _addBotMessage(textSummary);
+        } else {
+          final relaxed = await _relaxedSearch(filters);
+          if (relaxed.isNotEmpty) {
+            final textSummary = _buildProductTextSummary(
+              "Exact match nahi mila, lekin yeh similar options hain:",
+              relaxed,
+            );
+            _addBotMessage(textSummary);
+          } else {
+            _addBotMessage(
+              "Is criteria ky liye products available nahi hain. "
+                  "Color, size, ya budget thora adjust kar ky dobara try karein. 🙏",
+            );
+          }
+        }
       } else {
-        await _generateTextResponse(text);
+        _addBotMessage(reply);
       }
 
-      // Save to search history
-      if (!_searchHistory.any((h) => h.toLowerCase() == text.toLowerCase())) {
-        _searchHistory.insert(0, text);
-        if (_searchHistory.length > 10) _searchHistory.removeLast();
-        _saveSearchHistory();
-      }
+      _updateSearchHistory(text);
     } catch (e) {
-      print("Error in sendMessage: $e");
-      _addBotMessage("I apologize, but I encountered an error. Please try again or contact support if the issue persists.");
+      debugPrint("sendMessage error: $e");
+      _addBotMessage(
+          "Abhi thori takleef ho rahi hai. Dobara try karein please. 🙏");
     } finally {
-      if (_requestCompleter != null && !_requestCompleter!.isCompleted) {
-        _requestCompleter!.complete();
-      }
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> _handleProductQuery(String query) async {
-    // Check what information we need
-    final missingInfo = <String>[];
+  // ══════════════════════════════════════════════════════════════════════════════
+  // PRODUCT TEXT SUMMARY — no cards, just rich markdown text
+  // ══════════════════════════════════════════════════════════════════════════════
 
-    if (_currentGender == null) {
-      missingInfo.add("gender (Man/Woman/Unisex)");
-    }
-    if (_currentCategory == null) {
-      missingInfo.add("category (T-Shirt/Hoodie/Pant)");
-    }
+  String _buildProductTextSummary(
+      String intro, List<ClothingProductModel> products) {
+    final buffer = StringBuffer();
+    buffer.writeln(intro);
+    buffer.writeln();
 
-    // If missing essential info, ask for it
-    if (missingInfo.isNotEmpty) {
-      final message = "To help you better, I need to know your ${missingInfo.join(' and ')} preference. What are you looking for?";
-      _addBotMessage(message);
-      return;
-    }
+    final limited = products.take(5).toList();
+    for (int i = 0; i < limited.length; i++) {
+      final p = limited[i];
+      buffer.writeln("**${i + 1}. ${p.title}**");
+      buffer.writeln("💰 Price: Rs. ${p.price.toStringAsFixed(0)}");
+      if (p.category != null) buffer.writeln("🏷️ Category: ${p.category}");
+      if (p.gender != null) buffer.writeln("👤 For: ${p.gender}");
 
-    // Apply any active filters
-    _applyActiveFilters();
-
-    // Search for products
-    final results = await _searchProductsInFirestore();
-
-    if (results.isEmpty) {
-      // Try with relaxed criteria
-      final relaxedResults = await _searchWithRelaxedCriteria();
-
-      if (relaxedResults.isEmpty) {
-        _addBotMessage("I couldn't find any products matching your criteria. Would you like to try a different search?");
-      } else {
-        _addBotMessage(
-          "I found some similar products that might interest you:",
-          products: relaxedResults,
-        );
+      // List available colors
+      final colors = p.variants
+          .expand((v) => v.colors)
+          .map((c) => c.colorSpace?.toString() ?? '')
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList();
+      if (colors.isNotEmpty) {
+        buffer.writeln("🎨 Colors: ${colors.join(', ')}");
       }
-    } else {
-      _addBotMessage(
-        "Here are some ${_currentGender} ${_currentCategory} options for you:",
-        products: results,
-      );
 
-      // Ask about additional preferences if not specified
-      if (_currentColor == null || _currentSize == null || _currentBudget == null) {
-        _addBotMessage("Would you like to specify color, size, or budget to refine your search?");
+      // List available sizes
+      final sizes = p.variants
+          .expand((v) => v.sizes)
+          .map((s) => s.size.toUpperCase())
+          .toSet()
+          .toList();
+      if (sizes.isNotEmpty) {
+        buffer.writeln("📏 Sizes: ${sizes.join(', ')}");
       }
+
+      if (i < limited.length - 1) buffer.writeln();
     }
+
+    if (products.length > 5) {
+      buffer.writeln();
+      buffer.writeln(
+          "_...aur ${products.length - 5} products available hain. Filters use karein to narrow down._");
+    }
+
+    return buffer.toString().trim();
   }
 
-  Future<List<ClothingProductModel>> _searchProductsInFirestore() async {
-    try {
-      if (_currentGender == null || _currentCategory == null) {
-        return [];
-      }
+  // ══════════════════════════════════════════════════════════════════════════════
+  // CORE DeepSeek CALL — single call, JSON includes sentiment field
+  //
+  // Literature review alignment:
+  //   [7] Contextual rigidity → _conversationHistory (20 turns) injected every call
+  //   [4] Emotional intelligence gap → "sentiment" field returned in same JSON,
+  //       zero extra latency, NLP-based not keyword-based
+  // ══════════════════════════════════════════════════════════════════════════════
 
-      // Query Firestore directly
-      final collection = _firestore.collection('Cloths').doc(_currentGender).collection(_currentCategory!);
-      Query query = collection;
+  Future<Map<String, dynamic>> _getStructuredAIDecision(
+      String userMessage) async {
+    final catalogueSummary = _buildCatalogueSummary();
+    final filterContext = _buildFilterContext();
 
-      // Apply filters
-      if (filterMaxPrice != null) {
-        query = query.where('price', isLessThanOrEqualTo: filterMaxPrice);
-      }
+    final systemPrompt = """
+You are Vision Cart Assistant — a smart, empathetic 24/7 fashion assistant for Vision Cart, a Pakistani clothing e-commerce store.
 
-      final snapshot = await query.get();
+STORE INVENTORY (live data):
+$catalogueSummary
 
-      List<ClothingProductModel> products = snapshot.docs.map((doc) {
-        final product = ClothingProductModel.fromSnapshot(doc);
-        product.gender = _currentGender!;
-        product.category = _currentCategory!;
-        return product;
-      }).toList();
+ACTIVE USER FILTERS:
+$filterContext
 
-      // Apply additional filters in memory
-      return products.where((product) {
-        // Filter by color if specified
-        if (_currentColor != null) {
-          final hasColor = product.variants.any((variant) =>
-              variant.colors.any((color) =>
-              color.colorSpace?.toString().contains(_currentColor!.toLowerCase()) ?? false
-              )
-          );
-          if (!hasColor) return false;
-        }
+YOUR CAPABILITIES:
+- Answer questions about our clothing: T-Shirts, Hoodies, Pants for Men and Women
+- Handle store policy: returns 7 days, shipping 3-5 days, payment COD/Card
+- Handle order and tracking queries
+- Give fashion advice relevant to our inventory
+- Respond in English, Urdu, or Roman Urdu — match the user's language naturally
+- Politely refuse questions unrelated to Vision Cart or clothing/fashion
 
-        // Filter by size if specified
-        if (_currentSize != null) {
-          final hasSize = product.variants.any((variant) =>
-              variant.sizes.any((size) =>
-              size.size.toUpperCase() == _currentSize!.toUpperCase()
-              )
-          );
-          if (!hasSize) return false;
-        }
+SENTIMENT DETECTION — classify based on the CURRENT message in context:
+- neutral: normal question, no emotion
+- happy: grateful, satisfied, positive, thankful
+- confused: uncertain, asking for clarification, unclear request
+- frustrated: impatient, repeating question, mild complaint, "kaam nahi kar raha", "kyun nahi mila"
+- angry: rude language, ALL CAPS frustration, insults, explicit anger, strong complaints
 
-        // Filter by style if specified
-        if (_currentStyle != null) {
-          if (!product.tags.any((tag) => tag.toLowerCase().contains(_currentStyle!.toLowerCase()))) {
-            return false;
-          }
-        }
+ACCURACY TARGET: Resolve 95% of routine queries (orders, returns, product info, fashion advice) accurately. For anything outside Vision Cart scope, redirect politely — do NOT answer.
 
-        return true;
-      }).toList();
-    } catch (e) {
-      print("Error searching Firestore: $e");
-      return [];
-    }
+RULES:
+1. Respond ONLY with a valid JSON object. No markdown, no preamble, no extra text.
+2. For off_topic queries, set intent to "off_topic" and redirect politely.
+3. For product_search, extract ONLY what the user actually mentioned — do NOT invent missing values (leave null).
+4. The full conversation history is provided — remember context from earlier turns (do NOT repeat questions already answered).
+5. Use "Rs." for prices. Reply 2-4 sentences unless detail is needed.
+6. Be warm and empathetic. Use emojis occasionally. Support Roman Urdu naturally.
+
+RESPONSE FORMAT (strict JSON, no exceptions):
+{
+  "intent": "product_search" | "store_policy" | "order" | "general" | "off_topic",
+  "sentiment": "neutral" | "happy" | "confused" | "frustrated" | "angry",
+  "reply": "Conversational message shown to the user",
+  "filters": {
+    "gender": "Man" | "Woman" | "Unisex" | null,
+    "category": "T-Shirt" | "Hoodie" | "Pant" | null,
+    "color": "red" | "blue" | "green" | "black" | "white" | "gray" | "pink" | "purple" | "yellow" | "orange" | "brown" | null,
+    "size": "XS" | "S" | "M" | "L" | "XL" | "XXL" | null,
+    "maxPrice": number | null
   }
+}
 
-  Future<List<ClothingProductModel>> _searchWithRelaxedCriteria() async {
-    try {
-      if (_currentGender == null || _currentCategory == null) {
-        return [];
-      }
+"filters" is ONLY populated when intent is "product_search". All other intents: return "filters": {}.
+""";
 
-      final collection = _firestore.collection('Cloths').doc(_currentGender).collection(_currentCategory!);
-      final snapshot = await collection.limit(5).get();
+    _conversationHistory.add({"role": "user", "content": userMessage});
 
-      return snapshot.docs.map((doc) {
-        final product = ClothingProductModel.fromSnapshot(doc);
-        product.gender = _currentGender!;
-        product.category = _currentCategory!;
-        return product;
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  Future<void> _generateTextResponse(String query) async {
-    try {
-      final response = await _getAIResponse(query);
-      _addBotMessage(response);
-    } catch (e) {
-      _addBotMessage("I'm having trouble generating a response. Please try again.");
-    }
-  }
-
-  Future<String> _getAIResponse(String userMessage) async {
     final messages = [
-      {
-        "role": "system",
-        "content": _buildSystemPrompt()
-      },
-      {
-        "role": "user",
-        "content": userMessage
-      }
+      {"role": "system", "content": systemPrompt},
+      ..._conversationHistory,
     ];
 
     try {
@@ -410,134 +345,269 @@ class AIChatBotProvider with ChangeNotifier {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_apiKey',
         },
-        body: json.encode({
+        body: jsonEncode({
           "model": "deepseek-chat",
           "messages": messages,
-          "temperature": 0.7,
-          "max_tokens": 500,
-          "stream": false
+          "temperature": 0.4,
+          "max_tokens": 600,
+          "stream": false,
+          "response_format": {"type": "json_object"},
         }),
       );
 
       if (response.statusCode == 200) {
-        final responseBody = jsonDecode(response.body);
-        return responseBody['choices'][0]['message']['content'];
+        final body = jsonDecode(response.body);
+        final content = body['choices'][0]['message']['content'] as String;
+
+        _conversationHistory.add({"role": "assistant", "content": content});
+
+        // Keep history bounded — last 20 turns = 40 entries
+        if (_conversationHistory.length > 40) {
+          _conversationHistory.removeRange(0, 2);
+        }
+
+        return jsonDecode(content) as Map<String, dynamic>;
       } else {
-        return "I apologize, but I'm having trouble connecting right now. Please try again in a moment.";
+        debugPrint("DeepSeek error ${response.statusCode}: ${response.body}");
+        return _fallbackResponse();
       }
     } catch (e) {
-      return "I'm experiencing some technical difficulties. Please try again or contact support for immediate assistance.";
+      debugPrint("AI call error: $e");
+      return _fallbackResponse();
     }
   }
 
-  String _buildSystemPrompt() {
-    return """
-You are Vision Cart Assistant, a 24/7 fashion assistant for a Pakistani clothing store. You help customers with:
-1. Product inquiries (T-Shirts, Hoodies, Pants for Men and Women)
-2. Store policies
-3. Order issues
-4. Fashion advice
+  Map<String, dynamic> _fallbackResponse() => {
+    "intent": "general",
+    "sentiment": "neutral",
+    "reply":
+    "Connection mein thori masla aa rahi hai. Thori dair baad try karein. 🙏",
+    "filters": {},
+  };
 
-Current Context:
-${_currentGender != null ? "• Gender: $_currentGender" : ""}
-${_currentCategory != null ? "• Category: $_currentCategory" : ""}
-${_currentColor != null ? "• Color: $_currentColor" : ""}
-${_currentSize != null ? "• Size: $_currentSize" : ""}
-${_currentBudget != null ? "• Budget: Rs. ${_currentBudget!.toStringAsFixed(0)}" : ""}
+  // ══════════════════════════════════════════════════════════════════════════════
+  // SENTIMENT STATE UPDATE — synchronous, no extra API call
+  // ══════════════════════════════════════════════════════════════════════════════
 
-Guidelines:
-- Be friendly, helpful, and professional
-- Understand and respond in English, Urdu, and Roman Urdu
-- If user asks for products but hasn't specified gender/category, ask for it ONCE
-- Maintain context throughout conversation
-- If showing products, keep messages concise
-- For product queries, focus on available items in our store
-- Use "Rs." for Pakistani Rupees
-- Keep responses under 3-4 lines unless detailed explanation needed
-- Empathize with customer concerns
-- Use appropriate emojis occasionally
+  void _updateSentiment(String sentimentStr) {
+    _currentSentiment = _parseSentiment(sentimentStr);
 
-Store Information:
-- Returns: 7-day return policy
-- Shipping: 3-5 business days across Pakistan
-- Contact: support@visioncart.pk
-- Payment: Cash on Delivery, Credit/Debit Cards
-""";
-  }
-
-  bool _isProductQuery(String message) {
-    final productKeywords = [
-      't-shirt', 'tshirt', 'hoodie', 'pant', 'jeans', 'clothes',
-      'kapray', 'kapra', 'dress', 'shirt', 'kamiz', 'shalwar',
-      'product', 'item', 'buy', 'purchase', 'shop', 'shopping',
-      'show me', 'find', 'search', 'looking for', 'need', 'want',
-      'price', 'daam', 'cost', 'color', 'colour', 'rang', 'size',
-      'fit', 'measurement', 'material', 'cotton', 'wool', 'silk'
-    ];
-
-    final lowerMessage = message.toLowerCase();
-    return productKeywords.any((keyword) => lowerMessage.contains(keyword));
-  }
-
-  bool _isStorePolicyQuery(String message) {
-    final policyKeywords = [
-      'policy', 'return', 'exchange', 'refund', 'shipping',
-      'delivery', 'payment', 'cash', 'card', 'warranty',
-      'guarantee', 'quality', 'authentic', 'original'
-    ];
-
-    final lowerMessage = message.toLowerCase();
-    return policyKeywords.any((keyword) => lowerMessage.contains(keyword));
-  }
-
-  bool _isOrderQuery(String message) {
-    final orderKeywords = [
-      'order', 'track', 'status', 'cancel', 'update',
-      'delay', 'missing', 'received', 'delivered',
-      'tracking', 'order number', 'confirmation'
-    ];
-
-    final lowerMessage = message.toLowerCase();
-    return orderKeywords.any((keyword) => lowerMessage.contains(keyword));
-  }
-
-  Future<void> _handleStorePolicyQuery(String query) async {
-    final response = await _getAIResponse("Store policy question: $query");
-    _addBotMessage(response);
-  }
-
-  Future<void> _handleOrderQuery(String query) async {
-    final response = await _getAIResponse("Order related question: $query");
-    _addBotMessage(response);
-  }
-
-  void _applyActiveFilters() {
-    if (filterGender != null) {
-      _currentGender = filterGender;
+    switch (_currentSentiment) {
+      case UserSentiment.frustrated:
+      case UserSentiment.angry:
+        _frustratedTurnCount++;
+        break;
+      case UserSentiment.happy:
+        _frustratedTurnCount = 0; // positive signal resets counter
+        break;
+      default:
+        break; // neutral/confused: no change
     }
-    if (filterCategory != null) {
-      _currentCategory = filterCategory;
+
+    notifyListeners();
+  }
+
+  UserSentiment _parseSentiment(String s) {
+    switch (s.toLowerCase()) {
+      case 'happy':
+        return UserSentiment.happy;
+      case 'confused':
+        return UserSentiment.confused;
+      case 'frustrated':
+        return UserSentiment.frustrated;
+      case 'angry':
+        return UserSentiment.angry;
+      default:
+        return UserSentiment.neutral;
     }
+  }
+
+  bool _shouldEscalate() =>
+      _frustratedTurnCount >= _escalationThreshold &&
+          _escalationState == EscalationState.none;
+
+  /// Escalation: gentle check-in first, then UI shows the "Chat with Seller"
+  /// button. Does NOT hard-redirect — user can still keep chatting.
+  void _handleEscalation() {
+    _escalationState = EscalationState.suggested;
+    _addBotMessage(
+      "Lagta hai aapko thori mushkil ho rahi hai — main samajh sakta hoon. 😔\n\n"
+          "Kya main aapki puri baat samajh paya? Agar aap chahein toh "
+          "hum aapko seller se directly connect kar saktay hain jo personally help kar sakein.",
+    );
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // PRODUCT SEARCH — Firestore + in-memory filter
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  Future<List<ClothingProductModel>> _searchProducts(
+      Map<String, dynamic> filters) async {
+    try {
+      final gender = _resolveGender(filters['gender'] as String?);
+      final category = filters['category'] as String?;
+      final color = (filters['color'] as String?)?.toLowerCase();
+      final size = filters['size'] as String?;
+      final maxPriceRaw = filters['maxPrice'];
+      final maxPrice =
+      maxPriceRaw != null ? (maxPriceRaw as num).toDouble() : null;
+
+      final effectiveGender = filterGender ?? gender;
+      final effectiveCategory = filterCategory ?? category;
+      final effectiveColor = filterColorName?.toLowerCase() ?? color;
+      final effectiveSize = filterSize ?? size;
+      final effectiveMaxPrice = filterMaxPrice ?? maxPrice;
+
+      List<ClothingProductModel> products;
+
+      if (effectiveGender != null && effectiveCategory != null) {
+        Query query = _firestore
+            .collection('Cloths')
+            .doc(effectiveGender)
+            .collection(effectiveCategory);
+
+        if (effectiveMaxPrice != null) {
+          query =
+              query.where('price', isLessThanOrEqualTo: effectiveMaxPrice);
+        }
+
+        final snap = await query.get();
+        products = snap.docs.map((doc) {
+          final p = ClothingProductModel.fromSnapshot(doc);
+          p.gender = effectiveGender;
+          p.category = effectiveCategory;
+          return p;
+        }).toList();
+      } else {
+        products = List.from(_allProducts);
+      }
+
+      return _applyMemoryFilters(
+        products,
+        gender: effectiveGender,
+        category: effectiveCategory,
+        color: effectiveColor,
+        size: effectiveSize,
+        maxPrice: effectiveMaxPrice,
+      );
+    } catch (e) {
+      debugPrint("Product search error: $e");
+      return [];
+    }
+  }
+
+  List<ClothingProductModel> _applyMemoryFilters(
+      List<ClothingProductModel> products, {
+        String? gender,
+        String? category,
+        String? color,
+        String? size,
+        double? maxPrice,
+      }) {
+    return products.where((p) {
+      if (gender != null && p.gender != gender) return false;
+      if (category != null && p.category != category) return false;
+      if (maxPrice != null && p.price > maxPrice) return false;
+      if (color != null) {
+        final hasColor = p.variants.any((v) => v.colors.any((c) =>
+        c.colorSpace?.toString().toLowerCase().contains(color) ?? false));
+        if (!hasColor) return false;
+      }
+      if (size != null) {
+        final hasSize = p.variants.any((v) =>
+            v.sizes.any((s) => s.size.toUpperCase() == size.toUpperCase()));
+        if (!hasSize) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<List<ClothingProductModel>> _relaxedSearch(
+      Map<String, dynamic> filters) async {
+    try {
+      final gender =
+          _resolveGender(filters['gender'] as String?) ?? filterGender;
+      final category = (filters['category'] as String?) ?? filterCategory;
+      if (gender == null || category == null) return [];
+
+      final snap = await _firestore
+          .collection('Cloths')
+          .doc(gender)
+          .collection(category)
+          .limit(6)
+          .get();
+
+      return snap.docs.map((doc) {
+        final p = ClothingProductModel.fromSnapshot(doc);
+        p.gender = gender;
+        p.category = category;
+        return p;
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String? _resolveGender(String? raw) {
+    if (raw == 'Man' || raw == 'Woman' || raw == 'Unisex') return raw;
+    return null;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // CONTEXT BUILDERS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  String _buildCatalogueSummary() {
+    final buffer = StringBuffer();
+    const genders = ['Man', 'Woman'];
+    const categories = ['T-Shirt', 'Hoodie', 'Pant'];
+
+    for (final g in genders) {
+      for (final c in categories) {
+        final count =
+            _allProducts.where((p) => p.gender == g && p.category == c).length;
+        if (count > 0) buffer.writeln("• $g $c: $count products");
+      }
+    }
+
+    if (_allProducts.isNotEmpty) {
+      final prices = _allProducts.map((p) => p.price).toList()..sort();
+      buffer.writeln(
+          "• Price range: Rs. ${prices.first.toStringAsFixed(0)} – Rs. ${prices.last.toStringAsFixed(0)}");
+    }
+
+    return buffer.isEmpty ? "Loading inventory..." : buffer.toString();
+  }
+
+  String _buildFilterContext() {
+    final parts = <String>[];
+    if (filterGender != null) parts.add("Gender: $filterGender");
+    if (filterCategory != null) parts.add("Category: $filterCategory");
+    if (filterColorName != null) parts.add("Color: $filterColorName");
+    if (filterSize != null) parts.add("Size: $filterSize");
     if (filterMaxPrice != null) {
-      _currentBudget = filterMaxPrice;
+      parts.add("Max Price: Rs. ${filterMaxPrice!.toStringAsFixed(0)}");
     }
-    if (filterColorName != null) {
-      _currentColor = filterColorName!.toLowerCase();
-    }
-    if (filterSize != null) {
-      _currentSize = filterSize;
-    }
-
-    clearFilters();
+    return parts.isEmpty ? "None" : parts.join(", ");
   }
 
-  // Message Management
-  void _addSystemMessage() {
+  // ══════════════════════════════════════════════════════════════════════════════
+  // MESSAGE HELPERS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  void _addWelcomeMessage() {
     _messages.add({
-      'text': "👋 Welcome to Vision Cart! I'm your personal shopping assistant. How can I help you today?\n\nYou can ask me about:\n• T-Shirts, Hoodies, and Pants\n• Store policies and shipping\n• Order status and tracking\n• Fashion advice and recommendations",
+      'text': "👋 Assalam-o-Alaikum! **Vision Cart** mein aapka khair maqdam!\n\n"
+          "Main aapka 24/7 AI shopping assistant hoon. Yeh poochh saktay hain:\n"
+          "• 👕 Men & Women ke liye T-Shirts, Hoodies, aur Pants\n"
+          "• 📦 Orders, shipping aur return policy\n"
+          "• 💡 Fashion advice aur personalized recommendations\n\n"
+          "Aaj main aapki kya madad kar sakta hoon?",
       'isUser': false,
       'timestamp': DateTime.now(),
-      'type': 'text'
+      'type': 'text',
     });
     notifyListeners();
   }
@@ -547,185 +617,131 @@ Store Information:
       'text': text,
       'isUser': true,
       'timestamp': DateTime.now(),
-      'type': 'text'
+      'type': 'text',
     });
     notifyListeners();
   }
 
-  void _addBotMessage(String text, {List<ClothingProductModel>? products}) {
+  void _addBotMessage(String text) {
     _messages.add({
       'text': text,
       'isUser': false,
       'timestamp': DateTime.now(),
-      'type': products != null ? 'products' : 'text',
-      'products': products,
+      'type': 'text',
     });
-
-    if (products != null) {
-      _saveMessageToRTDB(text, false, type: 'products', products: products);
-    } else {
-      _saveMessageToRTDB(text, false);
-    }
-
+    _saveMessageToRTDB(text, false); // fire-and-forget
     notifyListeners();
   }
 
-  // Firestore & RTDB Operations
-  Future<bool> _saveMessageToRTDB(String text, bool isUser,
-      {String type = 'text', List<ClothingProductModel>? products}) async {
-    if (_conversationId == null) return false;
+  void _updateSearchHistory(String text) {
+    if (!_searchHistory.any((h) => h.toLowerCase() == text.toLowerCase())) {
+      _searchHistory.insert(0, text);
+      if (_searchHistory.length > 10) _searchHistory.removeLast();
+    }
+  }
 
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FIREBASE PERSISTENCE
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  Future<void> _saveMessageToRTDB(String text, bool isUser) async {
+    if (_conversationId == null) return;
     try {
-      final messagesRef = _rtdb.ref('conversations/$_conversationId/messages');
-      final messageRef = messagesRef.push();
-
-      Map<String, dynamic> messageData = {
+      final ref =
+      _rtdb.ref('conversations/$_conversationId/messages').push();
+      await ref.set({
         'text': text,
         'isUser': isUser,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'type': type,
-      };
-
-      if (products != null) {
-        messageData['products'] = products.map((p) => p.toMap()).toList();
-      }
-
-      await messageRef.set(messageData);
-      await _updateFirestoreConversation();
-      return true;
+        'type': 'text',
+      });
+      _updateFirestoreConversation(); // fire-and-forget
     } catch (e) {
-      print('[RTDB] Error: $e');
-      return false;
+      debugPrint('[RTDB] save error: $e');
     }
   }
 
   Future<void> _loadPreviousConversation() async {
     if (_conversationId == null) return;
-
     try {
-      final messagesRef = _rtdb.ref('conversations/$_conversationId/messages');
-      final snapshot = await messagesRef.get();
+      final snap =
+      await _rtdb.ref('conversations/$_conversationId/messages').get();
+      if (!snap.exists) return;
 
-      if (snapshot.exists) {
-        _messages.clear();
+      _messages.clear();
+      _conversationHistory.clear();
 
-        final messagesMap = Map<String, dynamic>.from(snapshot.value as Map);
-        final sortedMessages = messagesMap.entries.toList()
-          ..sort((a, b) => (a.value['timestamp'] ?? 0)
-              .compareTo(b.value['timestamp'] ?? 0));
+      final map = Map<String, dynamic>.from(snap.value as Map);
+      final sorted = map.entries.toList()
+        ..sort((a, b) => ((a.value['timestamp'] ?? 0) as int)
+            .compareTo((b.value['timestamp'] ?? 0) as int));
 
-        for (var entry in sortedMessages) {
-          final message = entry.value;
+      for (final entry in sorted) {
+        final msg = Map<String, dynamic>.from(entry.value as Map);
+        final isUser = msg['isUser'] as bool? ?? false;
+        final text = msg['text'] as String? ?? '';
+        final timestamp =
+        DateTime.fromMillisecondsSinceEpoch(msg['timestamp'] as int? ?? 0);
 
-          if (message['type'] == 'products') {
-            final productList = (message['products'] as List<dynamic>?)
-                ?.map((p) => ClothingProductModel.fromMap(
-                Map<String, dynamic>.from(p)))
-                .toList();
+        _messages.add({
+          'text': text,
+          'isUser': isUser,
+          'timestamp': timestamp,
+          'type': 'text',
+        });
 
-            if (productList != null && productList.isNotEmpty) {
-              _messages.add({
-                'text': message['text'] ?? 'Recommended products:',
-                'isUser': false,
-                'timestamp':
-                DateTime.fromMillisecondsSinceEpoch(message['timestamp']),
-                'type': 'products',
-                'products': productList,
-              });
-              continue;
-            }
-          }
+        _conversationHistory.add({
+          'role': isUser ? 'user' : 'assistant',
+          'content': text,
+        });
+      }
 
-          _messages.add({
-            'text': message['text'],
-            'isUser': message['isUser'],
-            'timestamp':
-            DateTime.fromMillisecondsSinceEpoch(message['timestamp']),
-            'type': 'text',
-          });
-        }
-
-        // Limit to last 20 messages
-        if (_messages.length > 20) {
-          _messages = _messages.sublist(_messages.length - 20);
-        }
+      if (_messages.length > 20) {
+        _messages = _messages.sublist(_messages.length - 20);
+      }
+      if (_conversationHistory.length > 40) {
+        _conversationHistory
+            .removeRange(0, _conversationHistory.length - 40);
       }
     } catch (e) {
-      print("Error loading conversation: $e");
+      debugPrint("Error loading conversation: $e");
     }
   }
 
   Future<void> _updateFirestoreConversation() async {
     if (_conversationId == null) return;
-
     try {
       await _firestore.collection('conversations').doc(_conversationId).set({
-        'createdAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'userId': FirebaseAuth.instance.currentUser?.uid,
-        'searchContext': {
-          'gender': _currentGender,
-          'category': _currentCategory,
-          'budget': _currentBudget,
-          'color': _currentColor,
-          'size': _currentSize,
-          'style': _currentStyle,
-        }
+        'sentimentState': _currentSentiment.name,
+        'escalationState': _escalationState.name,
       }, SetOptions(merge: true));
     } catch (e) {
-      print("Error updating Firestore: $e");
+      debugPrint("Firestore update error: $e");
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // CANCEL
+  // ══════════════════════════════════════════════════════════════════════════════
 
   void cancelRequest() {
-    if (_requestCompleter != null && !_requestCompleter!.isCompleted) {
-      _requestCompleter!.complete();
-      _isLoading = false;
-      notifyListeners();
-      _addBotMessage("Request cancelled. How else can I assist you?");
-    }
-  }
-
-  void _loadSearchHistory() async {
-    // Load from local storage or defaults
-    _searchHistory = [
-      "Men's T-Shirts",
-      "Women's Hoodies",
-      "Blue Jeans",
-      "Winter Collection"
-    ];
+    _isCancelled = true;
+    _isLoading = false;
     notifyListeners();
+    _addBotMessage("Request cancel ho gayi. Aur kuch madad kar sakta hoon? 😊");
   }
 
-  void _saveSearchHistory() async {
-    // Save to local storage
-  }
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FILTER METHODS
+  // ══════════════════════════════════════════════════════════════════════════════
 
-  // Filter Methods
-  void setFilterGender(String? value) {
-    filterGender = value;
-    notifyListeners();
-  }
-
-  void setFilterCategory(String? value) {
-    filterCategory = value;
-    notifyListeners();
-  }
-
-  void setFilterColorName(String? value) {
-    filterColorName = value;
-    notifyListeners();
-  }
-
-  void setFilterSize(String? value) {
-    filterSize = value;
-    notifyListeners();
-  }
-
-  void setFilterMaxPrice(double? value) {
-    filterMaxPrice = value;
-    notifyListeners();
-  }
+  void setFilterGender(String? v) { filterGender = v; notifyListeners(); }
+  void setFilterCategory(String? v) { filterCategory = v; notifyListeners(); }
+  void setFilterColorName(String? v) { filterColorName = v; notifyListeners(); }
+  void setFilterSize(String? v) { filterSize = v; notifyListeners(); }
+  void setFilterMaxPrice(double? v) { filterMaxPrice = v; notifyListeners(); }
 
   void clearFilters() {
     filterGender = null;
@@ -737,17 +753,25 @@ Store Information:
   }
 
   void applyFilters() {
-    final filters = [];
-    if (filterGender != null) filters.add(filterGender!);
-    if (filterCategory != null) filters.add(filterCategory!);
-    if (filterColorName != null) filters.add(filterColorName!);
-    if (filterSize != null) filters.add("Size ${filterSize!}");
-    if (filterMaxPrice != null)
-      filters.add("Under Rs.${filterMaxPrice!.toStringAsFixed(0)}");
-
-    if (filters.isNotEmpty) {
-      final text = "Show me ${filters.join(' ')}";
-      sendMessage(text);
+    final parts = <String>[];
+    if (filterGender != null) parts.add(filterGender!);
+    if (filterCategory != null) parts.add(filterCategory!);
+    if (filterColorName != null) parts.add(filterColorName!);
+    if (filterSize != null) parts.add("size ${filterSize!}");
+    if (filterMaxPrice != null) {
+      parts.add("under Rs.${filterMaxPrice!.toStringAsFixed(0)}");
     }
+    if (parts.isNotEmpty) {
+      sendMessage("Show me ${parts.join(' ')}");
+    }
+  }
+
+  void _loadSearchHistory() {
+    _searchHistory = [
+      "Men's T-Shirts",
+      "Women's Hoodies",
+      "Blue Jeans",
+      "Winter Collection",
+    ];
   }
 }

@@ -3,11 +3,13 @@ import 'package:audio_waveforms/audio_waveforms.dart' as aw;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/Reuse%20Widgets/loadingShimmer.dart';
 import 'package:glamora/Reuse%20Widgets/userDetailsTexfield.dart';
+import 'package:glamora/constants/app_theme.dart';
 import 'package:glamora/constants/colors.dart';
 import 'package:glamora/constants/fonts.dart';
 import 'package:glamora/models/MessagingModel.dart';
@@ -17,6 +19,7 @@ import 'package:glamora/providers/UserProvider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../Services/notificationService.dart';
 import 'VoiceBubble.dart';
 
 class MessagingScreen extends StatefulWidget {
@@ -29,6 +32,7 @@ class MessagingScreen extends StatefulWidget {
 class _MessagingScreenState extends State<MessagingScreen> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  var currentUser;
   bool _isConnected = true;
 
   @override
@@ -40,6 +44,9 @@ class _MessagingScreenState extends State<MessagingScreen> {
             _scrollController.position.pixels, _scrollController.position.maxScrollExtent);
       }
     });
+    currentUser = FirebaseAuth.instance.currentUser!.uid;
+    NotificationService.onChatOpened(currentUser);
+
     Connectivity().checkConnectivity().then((result) {
       if (mounted) setState(() => _isConnected = result.contains(ConnectivityResult.mobile) || result.contains(ConnectivityResult.wifi));
     });
@@ -59,6 +66,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    NotificationService.onChatClosed();
     super.dispose();
   }
 
@@ -291,7 +299,12 @@ class _MessagingScreenState extends State<MessagingScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  mediumFont(text: "Vision Cart", color: white),
+                 Row(
+                   children: [
+                     mediumFont(text: "Vision Cart ", color: white),
+                     Icon(Icons.verified,color: Colors.blue.shade600,size: 16)
+                   ],
+                 ),
                   smallFont(text: statusText, overflow: TextOverflow.ellipsis, color: statusColor),
                 ],
               ),

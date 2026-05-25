@@ -1,468 +1,216 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../Reuse Widgets/loadingShimmer.dart';
+import '../../constants/app_theme.dart';
 import '../../constants/reponsivness.dart';
 import '../../models/OrderList.dart';
 import '../../models/OrderProducts.dart';
 import '../../providers/OrdersProvider.dart';
+import '../Review/Review.dart';
 import 'TrackOrder.dart';
-import '../../constants/fonts.dart';
 import '../../constants/colors.dart';
 import 'dart:math' as math;
 
+// ─── Theme helpers ────────────────────────────────────────────────────────────
+class _C {
+  static const primary = Color(0xFF6366F1);
+  static const accent = Color(0xFFF97316);
+  static const success = Color(0xFF16A34A);
+  static const danger = Color(0xFFEF4444);
+  static const warning = Color(0xFFF59E0B);
+  static const darkBg = Color(0xFF121212);
+  static const darkCard = Color(0xFF181818);
+  static const darkBorder = Color(0xFF333333);
+  static const muted = Color(0xFF707070);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 class OrdersListScreen extends StatelessWidget {
+  const OrdersListScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<DarkModeProvider>(context);
-    final bool isDark = themeProvider.isDarkMode;
-    final String? currentEmail = FirebaseAuth.instance.currentUser?.email;
+    final isDark = Provider.of<DarkModeProvider>(context).isDarkMode;
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
 
     return Scaffold(
-      backgroundColor: isDark ? darkBlack : white,
-      appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            productTitle(text: "My Orders",color: white),
-            SizedBox(width: 4),
-            Consumer<OrdersProvider>(
-              builder: (ctx, provider, _) {
-                return Expanded(
-                  child: TextField(
-                    onChanged: (value) => provider.setSearchQuery(value),
-                    style: TextStyle(
-                      color: isDark ? white : darkBlack,
-                      fontSize: getResponsiveFontSize(14),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search Your Orders',
-                      hintStyle: TextStyle(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        fontSize: getResponsiveFontSize(14),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        size: getResponsiveIconSize(20),
-                      ),
-                      suffixIcon: provider.searchQuery.isNotEmpty
-                          ? IconButton(
-                        icon: Icon(
-                          Icons.clear,
-                          color: isDark ? white : darkBlack,
-                        ),
-                        onPressed: () => provider.setSearchQuery(''),
-                      )
-                          : null,
-                      filled: true,
-                      fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(21),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: getResponsiveWidth(16),
-                        vertical: getResponsiveHeight(8),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            )
-          ],
-        ),
-        backgroundColor: isDark ? lightBlack : purple,
-        elevation: 0,
-        iconTheme: IconThemeData(color: white),
-      ),
+      backgroundColor: isDark ? _C.darkBg : const Color(0xFFF8FAFC),
+      appBar: _buildAppBar(context, isDark),
       body: Consumer<OrdersProvider>(
-        builder: (context, provider, child) {
+        builder: (context, provider, _) {
           if (provider.isLoading) {
-            return Padding(
-              padding: EdgeInsets.all(getResponsiveWidth(8)),
-              child: buildShimmerLoading(context, isDark),
-            );
+            return _buildShimmer(context, isDark);
           }
 
-          List<OrderList> userOrders = currentEmail != null
+          final userOrders = currentEmail != null
               ? provider.orders
-              .where((order) => order.userDetails.email == currentEmail)
-              .toList()
+                  .where((o) => o.userDetails.email == currentEmail)
+                  .toList()
               : <OrderList>[];
 
-          List<OrderList> filteredOrders = userOrders.where((order) {
-            if (provider.searchQuery.isEmpty) return true;
-            double totalAmount = order.cartItems
-                .fold(0.0, (sum, item) => sum + (item.price * item.pieces));
-            String amountStr = totalAmount.toStringAsFixed(0);
-            String phone = order.userDetails.phoneNumber ?? '';
-            return order.orderId.toLowerCase().contains(provider.searchQuery) ||
-                order.orderDate.toLowerCase().contains(provider.searchQuery) ||
-                amountStr.contains(provider.searchQuery) ||
-                phone.toLowerCase().contains(provider.searchQuery);
-          }).toList();
+          final filteredOrders =
+              _filterOrders(userOrders, provider.searchQuery);
 
           if (userOrders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    size: getResponsiveIconSize(80),
-                    color: isDark ? lightGrayBlack : Colors.grey[400],
-                  ),
-                  SizedBox(height: getResponsiveHeight(16)),
-                  headingFont(
-                    text: 'No Orders Found',
-                    color: isDark ? white : darkBlack,
-                  ),
-                ],
-              ),
+            return _EmptyState(
+              icon: Icons.shopping_bag_outlined,
+              message: 'No Orders Yet',
+              subtitle: "Your orders will appear here",
+              isDark: isDark,
             );
           }
 
           if (filteredOrders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.search_off,
-                    size: getResponsiveIconSize(80),
-                    color: isDark ? lightGrayBlack : Colors.grey[400],
-                  ),
-                  SizedBox(height: getResponsiveHeight(16)),
-                  headingFont(
-                    text: provider.searchQuery.isEmpty
-                        ? 'No Orders Yet'
-                        : 'No Orders Matching Your Search',
-                    color: isDark ? white : darkBlack,
-                  ),
-                  if (provider.searchQuery.isNotEmpty) ...[
-                    SizedBox(height: getResponsiveHeight(8)),
-                    smallFont(
-                      text: 'Try adjusting your search terms',
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ],
-                ],
-              ),
+            return _EmptyState(
+              icon: Icons.search_off_rounded,
+              message: 'No Results Found',
+              subtitle: 'Try different search terms',
+              isDark: isDark,
             );
           }
 
           return ListView.builder(
-            padding: responsivePadding(left: 16, right: 16, bottom: 16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: filteredOrders.length,
-            itemBuilder: (context, index) {
-              final order = filteredOrders[index];
-              final isFulfilled =
-              order.fulfilled ? Icons.check_circle : Icons.schedule;
-              final statusColor = order.fulfilled
-                  ? isDark
-                  ? lightGreen
-                  : darkGreen.withAlpha(150)
-                  : isDark
-                  ? lightOrange
-                  : darkOrange.withAlpha(150);
-
-              // Calculate total items and total amount
-              int totalItems = order.cartItems.length;
-              double totalAmount = order.cartItems
-                  .fold(0.0, (sum, item) => sum + (item.price * item.pieces));
-
-              return Card(
-                elevation: isDark ? 0 : 4,
-                margin: EdgeInsets.only(
-                    bottom: getResponsiveHeight(16),
-                    top: getResponsiveHeight(16)),
-                color: isDark ? lightBlack : white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(getResponsiveWidth(16)),
-                  side: BorderSide(
-                      color: isDark ? lightGrayBlack : Colors.grey[200]!,
-                      width: 0.5),
-                ),
-                child: Padding(
-                  padding: responsivePadding(
-                      left: 16, right: 16, top: 16, bottom: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Row: Order ID, Date/Time, Status
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: Container(
-                              height: getResponsiveHeight(60),
-                              child: totalItems <= 3
-                                  ? _buildImageStack(
-                                  order.cartItems, isDark, context)
-                                  : _buildImageRow(
-                                  order.cartItems, isDark, context),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                productTitle(
-                                    text: order.orderId,
-                                    color: isDark ? white : darkBlack,
-                                    maxWidth: 200),
-                                SizedBox(height: getResponsiveHeight(4)),
-                                smallFont(
-                                  text:
-                                  '${order.orderDate} at ${order.orderTime}',
-                                  color: isDark
-                                      ? Colors.grey.shade300
-                                      : Colors.grey,
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: responsivePadding(
-                                left: 8, right: 8, top: 4, bottom: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Icon(
-                              isFulfilled,
-                              color: statusColor,
-                              size: getResponsiveIconSize(20),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: getResponsiveHeight(12)),
-                      // Customer Details
-                      Row(
-                        children: [
-                          Icon(Icons.person,
-                              size: 20,
-                              color: isDark
-                                  ? lightBlue
-                                  : darkBlue2),
-                          SizedBox(width: getResponsiveWidth(8)),
-                          Expanded(
-                            child: mediumFont(
-                              align: TextAlign.start,
-                              text: 'Customer: ${order.userDetails.fullName}',
-                              color: isDark ? white : darkBlack,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: getResponsiveHeight(8)),
-                      // Total Amount and Items Info
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.attach_money,
-                                  size: 20,
-                                  color: isDark
-                                      ? green
-                                      : darkGreen),
-                              SizedBox(width: getResponsiveWidth(8)),
-                              mediumFont(
-                                align: TextAlign.start,
-                                text:
-                                'Total: Rs. ${totalAmount.toStringAsFixed(0)}',
-                                color: isDark ? green : darkGreen,
-                                weight: FontWeight.w600,
-                              ),
-                            ],
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.shopping_cart,
-                                  size: 20,
-                                  color: isDark
-                                      ? Colors.yellow
-                                      :Colors.yellow.shade700),
-                              SizedBox(width: getResponsiveWidth(8)),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  smallFont(
-                                    align: TextAlign.start,
-                                    text: 'Items: $totalItems',
-                                    color: isDark ? white : darkBlack,
-                                  ),
-                                  SizedBox(height: getResponsiveHeight(4)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // Add more details if available, e.g., delivery address or total
-                      if (order.userDetails.address != null) ...[
-                        SizedBox(height: getResponsiveHeight(8)),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.location_on,
-                                size: 20,
-                                color: isDark
-                                    ? lightOrange
-                                    : darkOrange),
-                            SizedBox(width: getResponsiveWidth(8)),
-                            Expanded(
-                              child: smallFont(
-                                align: TextAlign.start,
-                                text: 'Address: ${order.userDetails.address}',
-                                color: isDark ? Colors.grey.shade300 : lightBlack,
-                                maxLine: 2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      SizedBox(height: getResponsiveHeight(12)),
-                      // Tracking Button if available
-                      // Assuming these fields exist on your model
-// order.trackingId  → String?
-// order.isCancelled → bool
-// order.id          → String (document ID)
-
-                      if (order.cancelled == false) ...[
-                        // 1. Tracking button – show only when trackingId exists
-                        if (order.trackingId != null && order.trackingId!.isNotEmpty)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => OrderTrackingScreen(order: order),
-                                  ),
-                                );
-                              },
-                              icon: Icon(Icons.track_changes,
-                                  size: 16, color: isDark ? green : purple),
-                              label: mediumFont(
-                                text: 'Track Order',
-                                color: isDark ? green : purple,
-                                weight: FontWeight.w600,
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: responsivePadding(
-                                    left: 16, right: 16, top: 8, bottom: 8),
-                                backgroundColor:
-                                isDark ? green.withAlpha(50) : purple.withAlpha(50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(getResponsiveWidth(20)),
-                                ),
-                              ),
-                            ),
-                          )
-                        // 2. Cancel button – show only when NO trackingId (order not shipped yet)
-                        else if (order.trackingId == null || order.trackingId!.isEmpty)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () async {
-                                // Optional: show confirmation dialog
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: Text("Cancel Order"),
-                                    content: Text("Are you sure you want to cancel this order?"),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx, false),
-                                        child: Text("No"),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx, true),
-                                        child: Text("Yes"),
-                                      ),
-                                    ],
-                                  ),
-                                );
-
-                                if (confirm == true) {
-                                  try {
-                                    await FirebaseFirestore.instance
-                                        .collection('Orders')
-                                        .doc(order.docId) // or order.orderId whatever your doc ID field is
-                                        .update({'cancelled': true});
-
-                                    // Optional: show success message
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Order cancelled successfully")),
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Failed to cancel order")),
-                                    );
-                                  }
-                                }
-                              },
-                              icon: Icon(Icons.cancel, size: 16, color: Colors.red),
-                              label: mediumFont(
-                                text: 'Cancel Order',
-                                color: Colors.red,
-                                weight: FontWeight.w600,
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: responsivePadding(
-                                    left: 16, right: 16, top: 8, bottom: 8),
-                                backgroundColor: Colors.red.withAlpha(50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(getResponsiveWidth(20)),
-                                ),
-                              ),
-                            ),
-                          ),
-
-// 3. If order is already cancelled → show a simple label (optional)
-                      ] else
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Chip(
-                            backgroundColor: Colors.red.withOpacity(0.2),
-                            label: Text(
-                              "Order Cancelled",
-                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (context, index) =>
+                _OrderCard(order: filteredOrders[index], isDark: isDark),
           );
         },
       ),
-      floatingActionButton: Consumer<OrdersProvider>(
-        builder: (context, provider, child) {
-          return FloatingActionButton(
-            onPressed: provider.fetchOrders,
-            backgroundColor: isDark ? lightBlack : purple,
-            child: Icon(Icons.refresh, color: white),
-          );
-        },
+      floatingActionButton: _buildFAB(context, isDark),
+    );
+  }
+
+  // ─── App Bar ────────────────────────────────────────────────────────────────
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: isDark ? _C.darkCard : Colors.white,
+      iconTheme: IconThemeData(color: isDark ? Colors.white : _C.darkBg),
+      title: Row(
+        children: [
+          Text('My Orders',
+              style: AppText.title.copyWith(color: isDark ? white : grayBlack)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Consumer<OrdersProvider>(
+              builder: (_, provider, __) => _SearchField(
+                isDark: isDark,
+                value: provider.searchQuery,
+                onChanged: provider.setSearchQuery,
+                onClear: () => provider.setSearchQuery(''),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildShimmer(BuildContext context, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: List.generate(
+          3,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: reusableShimmerContainer(
+                context: context, isDarkMode: isDark, height: 180),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFAB(BuildContext context, bool isDark) {
+    return Consumer<OrdersProvider>(
+      builder: (_, provider, __) => FloatingActionButton(
+        onPressed: provider.fetchOrders,
+        backgroundColor: _C.primary,
+        elevation: 4,
+        child: const Icon(Icons.refresh_rounded, color: Colors.white),
+      ),
+    );
+  }
+
+  // ─── Filter logic ────────────────────────────────────────────────────────
+  List<OrderList> _filterOrders(List<OrderList> orders, String query) {
+    if (query.isEmpty) return orders;
+    final q = query.toLowerCase();
+    return orders.where((order) {
+      final total = order.cartItems
+          .fold(0.0, (sum, item) => sum + (item.price * item.pieces))
+          .toStringAsFixed(0);
+      final phone = order.userDetails.phoneNumber ?? '';
+      return order.orderId.toLowerCase().contains(q) ||
+          order.orderDate.toLowerCase().contains(q) ||
+          total.contains(q) ||
+          phone.toLowerCase().contains(q);
+    }).toList();
+  }
+}
+
+// ─── Search Field ─────────────────────────────────────────────────────────────
+class _SearchField extends StatelessWidget {
+  final bool isDark;
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchField({
+    required this.isDark,
+    required this.value,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: isDark ? _C.darkBg : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        onChanged: onChanged,
+        style: GoogleFonts.poppins(
+          fontSize: 13,
+          color: isDark ? Colors.white : _C.darkBg,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search orders...',
+          hintStyle: GoogleFonts.poppins(
+            fontSize: 13,
+            color: _C.muted,
+          ),
+          prefixIcon: Icon(Icons.search_rounded, color: _C.muted, size: 18),
+          suffixIcon: value.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, color: _C.muted, size: 16),
+                  onPressed: onClear,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 9),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Order Card ───────────────────────────────────────────────────────────────
+class _OrderCard extends StatelessWidget {
+  final OrderList order;
+  final bool isDark;
+
+  const _OrderCard({required this.order, required this.isDark});
   Widget _buildImageStack(
       List<OrderProducts> cartItems, bool isDark, BuildContext context) {
     return Stack(
@@ -551,6 +299,614 @@ class OrdersListScreen extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+  @override
+  Widget build(BuildContext context) {
+    final totalAmount = order.cartItems
+        .fold(0.0, (sum, item) => sum + (item.price * item.pieces));
+    final totalItems = order.cartItems.length;
+    final isDelivered = order.trackingStatus != null &&
+        order.trackingStatus!.isNotEmpty &&
+        order.trackingStatus!.last.trackingStatus == "Delivered";
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isDark ? _C.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.3)
+                : _C.primary.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? _C.darkBorder : Colors.grey.shade100,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ────────────────────────────────────────────────
+            Row(
+              children: [
+                // Product images
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    height: getResponsiveHeight(60),
+                    child: totalItems <= 3
+                        ? _buildImageStack(
+                        order.cartItems, isDark, context)
+                        : _buildImageRow(
+                        order.cartItems, isDark, context),
+                  ),
+                ),
+                // Order ID + Date
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.orderId,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : _C.darkBg,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${order.orderDate} · ${order.orderTime}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: _C.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status badge
+                _StatusBadge(
+                  fulfilled: order.fulfilled,
+                  cancelled: order.cancelled,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Divider ───────────────────────────────────────────────
+            Divider(
+              color: isDark ? _C.darkBorder : Colors.grey.shade100,
+              height: 1,
+            ),
+            const SizedBox(height: 12),
+
+            // ── Details row ───────────────────────────────────────────
+            Row(
+              children: [
+                _InfoChip(
+                  icon: Icons.person_outline_rounded,
+                  label: order.userDetails.fullName,
+                  color: _C.primary,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 8),
+                _InfoChip(
+                  icon: Icons.receipt_long_rounded,
+                  label: '$totalItems items',
+                  color: _C.warning,
+                  isDark: isDark,
+                ),
+                const Spacer(),
+                // Total amount
+                Text(
+                  'Rs. ${totalAmount.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _C.success,
+                  ),
+                ),
+              ],
+            ),
+
+            // ── Address ───────────────────────────────────────────────
+            if (order.userDetails.address != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.location_on_rounded, size: 14, color: _C.accent),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      order.userDetails.address!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: _C.muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 14),
+
+            // ── Action Buttons ────────────────────────────────────────
+            _ActionButtons(
+              order: order,
+              isDark: isDark,
+              isDelivered: isDelivered,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+class _StatusBadge extends StatelessWidget {
+  final bool fulfilled;
+  final bool? cancelled;
+  final bool isDark;
+
+  const _StatusBadge({
+    required this.fulfilled,
+    required this.cancelled,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (cancelled == true) {
+      return _badge(Icons.cancel_outlined, 'Cancelled', _C.danger);
+    }
+    if (fulfilled) {
+      return _badge(
+          Icons.check_circle_outline_rounded, 'Fulfilled', _C.success);
+    }
+    return _badge(Icons.schedule_rounded, 'Pending', _C.warning);
+  }
+
+  Widget _badge(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Info Chip ────────────────────────────────────────────────────────────────
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: isDark ? Colors.white70 : _C.darkBg,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Action Buttons ───────────────────────────────────────────────────────────
+class _ActionButtons extends StatelessWidget {
+  final OrderList order;
+  final bool isDark;
+  final bool isDelivered;
+
+  const _ActionButtons({
+    required this.order,
+    required this.isDark,
+    required this.isDelivered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // ── Write Review (only after delivery) ────────────────────────
+        // BUG FIX: was using outer `index` (order index), now uses 0
+        // because review is for the first item; adjust if needed
+        if (isDelivered)
+          _ActionButton(
+            icon: Icons.rate_review_outlined,
+            label: 'Write Review',
+            color: _C.warning,
+            isDark: isDark,
+            onTap: () {
+              List<ReviewProduct> reviewProducts = [];
+
+              for (var item in order.cartItems) {
+                reviewProducts.add(
+                  ReviewProduct(
+                    docId: item.id.toString(),
+                    gender: item.gender.toString(),
+                    category: item.category.toString(),
+                    productName: item.title,
+                    imageUrl: item.photoUrl[0],
+                    price: (item.price * item.pieces).toDouble(),
+                    color: item.colorHex,
+                    pieces: item.pieces
+                  ),
+                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReviewScreen(
+                      products: reviewProducts,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+
+        if (order.cancelled != true) ...[
+          if (isDelivered) const SizedBox(width: 8),
+
+          // ── Track Order ─────────────────────────────────────────────
+          if (order.trackingId != null && order.trackingId!.isNotEmpty)
+            _ActionButton(
+              icon: Icons.local_shipping_outlined,
+              label: 'Track Order',
+              color: _C.primary,
+              isDark: isDark,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => OrderTrackingScreen(order: order)),
+              ),
+            )
+
+          // ── Cancel Order ────────────────────────────────────────────
+          else
+            _ActionButton(
+              icon: Icons.cancel_outlined,
+              label: 'Cancel',
+              color: _C.danger,
+              isDark: isDark,
+              onTap: () => _confirmCancel(context),
+            ),
+        ] else
+          // ── Cancelled chip ──────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: _C.danger.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _C.danger.withOpacity(0.3)),
+            ),
+            child: Text(
+              'Order Cancelled',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _C.danger,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? _C.darkCard : white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Cancel Order',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: isDark ? white : _C.darkCard)),
+        content: Text('Are you sure you want to cancel this order?',
+            style: GoogleFonts.poppins(fontSize: 14, color: _C.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('No', style: GoogleFonts.poppins(color: _C.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Yes, Cancel',
+                style: GoogleFonts.poppins(
+                    color: _C.danger, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('Orders')
+            .doc(order.docId)
+            .update({'cancelled': true});
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Order cancelled successfully',
+                  style: GoogleFonts.poppins()),
+              backgroundColor: _C.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Failed to cancel order', style: GoogleFonts.poppins()),
+              backgroundColor: _C.danger,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
+    }
+  }
+}
+
+// ─── Action Button ────────────────────────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Image Stack / Row ────────────────────────────────────────────────────────
+class _ImageStack extends StatelessWidget {
+  final List<OrderProducts> items;
+  final bool isDark;
+
+  const _ImageStack({required this.items, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: List.generate(items.length, (i) {
+        return Positioned(
+          left: i * 14.0,
+          bottom: i * 3.0,
+          child: _OrderImage(item: items[i], isDark: isDark),
+        );
+      }),
+    );
+  }
+}
+
+class _ImageRow extends StatelessWidget {
+  final List<OrderProducts> items;
+  final bool isDark;
+
+  const _ImageRow({required this.items, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        math.min(3, items.length),
+        (i) => Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: _OrderImage(item: items[i], isDark: isDark),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderImage extends StatelessWidget {
+  final OrderProducts item;
+  final bool isDark;
+
+  const _OrderImage({required this.item, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = item.photoUrl.isNotEmpty ? item.photoUrl[0] : null;
+
+    return Container(
+      width: 48,
+      height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? _C.darkBorder : Colors.white,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: url != null && url.isNotEmpty
+            ? Image.network(
+                url,
+                fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        color: isDark ? _C.darkBorder : Colors.grey.shade200,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: _C.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                errorBuilder: (_, __, ___) => _placeholder(isDark),
+              )
+            : _placeholder(isDark),
+      ),
+    );
+  }
+
+  Widget _placeholder(bool isDark) {
+    return Container(
+      color: isDark ? _C.darkBorder : Colors.grey.shade200,
+      child: Icon(Icons.image_not_supported_outlined,
+          size: 18, color: isDark ? Colors.white38 : Colors.grey),
+    );
+  }
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final String subtitle;
+  final bool isDark;
+
+  const _EmptyState({
+    required this.icon,
+    required this.message,
+    required this.subtitle,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _C.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 48, color: _C.primary.withOpacity(0.5)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : _C.darkBg,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: _C.muted,
+            ),
+          ),
+        ],
       ),
     );
   }

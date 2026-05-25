@@ -267,27 +267,37 @@ class GarmentOverlayPainter extends CustomPainter {
   }
 
   double _tx(double x, Size cs) {
-    if (cameraLensDirection == CameraLensDirection.front) x = imageSize.width - x;
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-    switch (rotation) {
-      case InputImageRotation.rotation90deg:
-        return x * cs.width / (isIOS ? imageSize.width : imageSize.height);
-      case InputImageRotation.rotation270deg:
-        return cs.width - x * cs.width / (isIOS ? imageSize.width : imageSize.height);
-      default:
-        return x * cs.width / imageSize.width;
+
+    // Normalized image dimensions (rotation-aware)
+    final bool isRotated = rotation == InputImageRotation.rotation90deg ||
+        rotation == InputImageRotation.rotation270deg;
+
+    // Android pe rotated frames mein width/height swap hoti hai
+    final double imgW = (!isIOS && isRotated) ? imageSize.height : imageSize.width;
+    final double imgH = (!isIOS && isRotated) ? imageSize.width  : imageSize.height;
+
+    // Front camera mirror
+    double nx = (cameraLensDirection == CameraLensDirection.front)
+        ? imgW - x
+        : x;
+
+    if (rotation == InputImageRotation.rotation270deg) {
+      nx = imgW - nx;
     }
+
+    return nx * cs.width / imgW;
   }
 
   double _ty(double y, Size cs) {
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-    switch (rotation) {
-      case InputImageRotation.rotation90deg:
-      case InputImageRotation.rotation270deg:
-        return y * cs.height / (isIOS ? imageSize.height : imageSize.width);
-      default:
-        return y * cs.height / imageSize.height;
-    }
+
+    final bool isRotated = rotation == InputImageRotation.rotation90deg ||
+        rotation == InputImageRotation.rotation270deg;
+
+    final double imgH = (!isIOS && isRotated) ? imageSize.width : imageSize.height;
+
+    return y * cs.height / imgH;
   }
 
   @override

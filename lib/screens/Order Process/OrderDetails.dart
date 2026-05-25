@@ -35,7 +35,8 @@ class OrderDetails extends StatefulWidget {
 class _OrderDetailsState extends State<OrderDetails> {
   Future<void> _addOrder() async {
     try {
-      final userDetails = Provider.of<UserDetailsProvider>(context, listen: false);
+      final userDetails =
+          Provider.of<UserDetailsProvider>(context, listen: false);
       final cartItems = Provider.of<CartProvider>(context, listen: false);
       int timestamp = DateTime.now().millisecondsSinceEpoch;
 
@@ -54,7 +55,8 @@ class _OrderDetailsState extends State<OrderDetails> {
       String orderId = 'ORD$timestamp';
       final currentUser = FirebaseAuth.instance.currentUser!.uid;
 
-      var orderCartItems = widget.itemsToCheckout.map((item) => item.toMap()).toList();
+      var orderCartItems =
+          widget.itemsToCheckout.map((item) => item.toMap()).toList();
 
       final docRef = await FirebaseFirestore.instance.collection("Orders").add({
         'docId': '',
@@ -93,7 +95,8 @@ class _OrderDetailsState extends State<OrderDetails> {
         'trackingStatus': [],
       });
 
-      var total = widget.itemsToCheckout.fold(0, (sum, item) => sum + int.parse(item.total));
+      var total = widget.itemsToCheckout
+          .fold(0, (sum, item) => sum + int.parse(item.total));
 
       for (int i = 0; i < widget.itemsToCheckout.length; i++) {
         if (currentUser != null) {
@@ -105,11 +108,15 @@ class _OrderDetailsState extends State<OrderDetails> {
         }
       }
 
-      SendNotificationService.sendNotificationUsingApi(
+      await SendNotificationService.sendNotificationUsingApi(
           body: "Order Id: $orderId with Total Bill of PKR ${total.toString()}",
           title: "New Order Placed!",
           data: {"screen": "notification"},
-          topic: 'Orders');
+          topic: 'Orders',
+          icon: '@drawable/ic_stat_icon',
+          sound: 'money',
+          channel: 'order_channel',
+          type: 'order_update');
 
       Navigator.pushReplacement(
         context,
@@ -211,7 +218,7 @@ class _OrderDetailsState extends State<OrderDetails> {
           itemBuilder: (context, index) {
             // Get the current item from cart provider to ensure we have latest data
             final currentItem = cartProvider.cartItems.firstWhere(
-                  (item) => item.id == widget.itemsToCheckout[index].id,
+              (item) => item.id == widget.itemsToCheckout[index].id,
               orElse: () => widget.itemsToCheckout[index],
             );
 
@@ -351,12 +358,12 @@ class _OrderDetailsState extends State<OrderDetails> {
   }
 
   Widget _orderRow(
-      String title,
-      String value,
-      bool isDarkMode, {
-        bool highlight = false,
-        bool isTotal = false,
-      }) {
+    String title,
+    String value,
+    bool isDarkMode, {
+    bool highlight = false,
+    bool isTotal = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -367,21 +374,21 @@ class _OrderDetailsState extends State<OrderDetails> {
         ),
         highlight
             ? Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: mediumFont(
-              text: value, weight: FontWeight.w600, color: Colors.green),
-        )
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: mediumFont(
+                    text: value, weight: FontWeight.w600, color: Colors.green),
+              )
             : smallFont(
-          text: value,
-          color: isTotal
-              ? (isDarkMode ? Colors.white : grayBlack)
-              : (isDarkMode ? Colors.white60 : Colors.black87),
-          weight: isTotal ? FontWeight.w700 : FontWeight.w400,
-        ),
+                text: value,
+                color: isTotal
+                    ? (isDarkMode ? Colors.white : grayBlack)
+                    : (isDarkMode ? Colors.white60 : Colors.black87),
+                weight: isTotal ? FontWeight.w700 : FontWeight.w400,
+              ),
       ],
     );
   }
@@ -394,7 +401,7 @@ class _OrderDetailsState extends State<OrderDetails> {
     for (var checkoutItem in widget.itemsToCheckout) {
       // Find the current item in cart to get updated values
       final currentItem = cartProvider.cartItems.firstWhere(
-            (item) => item.id == checkoutItem.id,
+        (item) => item.id == checkoutItem.id,
         orElse: () => checkoutItem,
       );
       total += int.parse(currentItem.total);
@@ -453,7 +460,7 @@ class _OrderDetailsState extends State<OrderDetails> {
       appBar: AppBar(
         backgroundColor: themeProvider.isDarkMode ? lightGrayBlack : white,
         iconTheme:
-        IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
+            IconThemeData(color: themeProvider.isDarkMode ? white : grayBlack),
         centerTitle: true,
         title: titleFont(
             text: "Order Details",

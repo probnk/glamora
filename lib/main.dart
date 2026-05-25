@@ -22,9 +22,13 @@ import 'package:glamora/providers/UserProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/providers/aiChatBotProvider.dart';
 import 'package:glamora/providers/onBoardingProvider.dart';
+import 'package:glamora/screens/No%20Internet%20Screen/connectivity_wrapper.dart';
+import 'package:glamora/screens/Product%20Details/AR%20Try%20On/CameraDetection.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Services/OnlineStatusHandlerService.dart';
+import 'Services/connectivity_service.dart';
+import 'Services/notificationService.dart';
 import 'screens/Splash Screen/SplashScreen.dart';
 
 @pragma('vm:entry-point')
@@ -37,6 +41,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  ConnectivityService().init(); // Sirf yahan, ek baar
+
   setupCustomerOnlineStatus(); // Call here
 // Load environment variables
   await dotenv.load(fileName: "assets/.env");
@@ -52,6 +58,7 @@ void main() async {
     DeviceOrientation.portraitUp
   ]);
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+  NotificationService.init();
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
@@ -83,9 +90,11 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => AIChatBotProvider()),
           ChangeNotifierProvider(create: (context) => TrackingProvider()),
           ChangeNotifierProvider(create: (context) => OrdersProvider()),
+          // ChangeNotifierProvider(create: (context) => ARTryOnProvider()),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
+          builder: (context, child) => ConnectivityWrapper(child: child!), // Yeh add kar
           home: SplashScreen(),
         )
     );

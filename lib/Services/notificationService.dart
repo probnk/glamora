@@ -4,178 +4,161 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../BottomNavBar/BottomNavBar.dart';
+import 'package:flutter/services.dart';
 
 class NotificationService {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+  static const _methodChannel = MethodChannel('com.example.glamora/notifications');
 
-  // Store messages grouped by chat (for stacked notifications)
-  final Map<String, List<Map<String, String>>> _chatMessages = {};
+  // Active chat track karne ke liye — null = koi chat screen open nahi
+  static String? activeChatId;
+  static bool isOrderScreenOpen = false;
 
-  // 🔹 1. Request Permission
+  // ── 1. Permission ─────────────────────────────────────────────
   Future<void> requestNotificationPermission() async {
-    NotificationSettings settings = await messaging.requestPermission(
+    final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ Notification permission granted');
-    } else {
-      print('❌ Notification permission denied');
+    if (kDebugMode) {
+      print(settings.authorizationStatus == AuthorizationStatus.authorized
+          ? '✅ Permission granted'
+          : '❌ Permission denied');
     }
   }
 
-  // 🔹 2. Get FCM Token
+  // ── 2. FCM Token ─────────────────────────────────────────────
   Future<String> getDeviceToken() async {
-    String? token = await messaging.getToken();
+    final token = await FirebaseMessaging.instance.getToken();
     if (kDebugMode) print('📱 FCM Token: $token');
     return token ?? '';
   }
 
-  // 🔹 3. Initialize Local Notifications
-  Future<void> initLocalNotifications(
-      BuildContext context, RemoteMessage message) async {
-    const androidInit = AndroidInitializationSettings('@drawable/ic_stat_icon');
-    const iOSInit = DarwinInitializationSettings();
-    final settings = InitializationSettings(android: androidInit, iOS: iOSInit);
+  // ── 3. Init — ek baar call karo, BuildContext nahi chahiye ────
+  static void init() {
+    // Foreground messages
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    await _flutterLocalNotificationsPlugin.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        handleMessage(context, message);
-      },
-    );
-
-    const channel = AndroidNotificationChannel(
-      'chat_channel',
-      'Chat Notifications',
-      description: 'Used for chat message notifications',
-      importance: Importance.max,
-    );
-
-    await _flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
-  }
-
-  // 🔹 4. Listen to Firebase messages (foreground)
-  void firebaseInit(BuildContext context) {
-    FirebaseMessaging.onMessage.listen((message) {
-      if (Platform.isAndroid) {
-        initLocalNotifications(context, message);
-        _showChatStyleNotification(message);
-      } else if (Platform.isIOS) {
-        FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-      }
-    });
-  }
-
-  // 🔹 5. Handle taps from background or terminated state
-  Future<void> setupInteractMessage(BuildContext context) async {
+    // Background se notification tap
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      handleMessage(context, message);
+      _handleNotificationTap(message.data);
     });
+  }
 
-    RemoteMessage? initialMessage =
-    await FirebaseMessaging.instance.getInitialMessage();
-
+  // ── 4. Terminated state tap ───────────────────────────────────
+  static Future<void> setupInteractMessage(BuildContext context) async {
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      handleMessage(context, initialMessage);
+      // Thoda delay do app properly load hone ke liye
+      await Future.delayed(const Duration(seconds: 1));
+      _handleNotificationTap(initialMessage.data);
     }
   }
 
-  // 🔹 6. WhatsApp-style stacked notifications
-  Future<void> _showChatStyleNotification(RemoteMessage message) async {
+  // ── 5. Foreground Handler ─────────────────────────────────────
+  static void _handleForegroundMessage(RemoteMessage message) {
+    if (!Platform.isAndroid) {
+      // iOS — FCM khud handle karta hai
+      FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true, badge: true, sound: true,
+      );
+      return;
+    }
+
     final data = message.data;
-    final chatId = data['chat_id'] ?? 'default_chat';
-    final chatName = data['chat_name'] ?? 'Chat';
-    final sender = data['sender'] ?? 'Someone';
-    final text = message.notification?.body ?? data['body'] ?? '';
+    final type = data['type'] ?? '';
 
-    // Store recent messages for each chat
-    _chatMessages.putIfAbsent(chatId, () => []);
-    _chatMessages[chatId]!.add({'sender': sender, 'text': text});
+    // ── Chat message ───────────────────────────────────────────
+    if (type == 'chat' || data['chat_id'] != null) {
+      final chatId = data['chat_id'] ?? '';
 
-    // Keep last 5 messages
-    if (_chatMessages[chatId]!.length > 5) {
-      _chatMessages[chatId] =
-          _chatMessages[chatId]!.sublist(_chatMessages[chatId]!.length - 5);
+      // Agar same chat open hai → notification mat dikhao
+      if (activeChatId == chatId) {
+        print("📵 Chat screen open hai — notification skip");
+        return;
+      }
+
+      _showNativeMessageNotification(
+        chatId:     chatId,
+        senderName: data['sender'] ?? data['chat_name'] ?? 'User',
+        message:    message.notification?.body ?? data['body'] ?? '',
+      );
+      return;
     }
 
-    // Create list of Message objects
-    final List<Message> messageList = _chatMessages[chatId]!
-        .map((msg) => Message(
-      msg['text'] ?? '',
-      DateTime.now(),
-      Person(name: msg['sender']),
-    ))
-        .toList();
-
-    // WhatsApp-like Messaging style
-    final style = MessagingStyleInformation(
-      Person(name: chatName),
-      conversationTitle: chatName,
-      groupConversation: true,
-      messages: messageList,
-    );
-
-    final androidDetails = AndroidNotificationDetails(
-      'chat_channel',
-      'Chat Notifications',
-      channelDescription: 'For chat messages',
-      importance: Importance.max,
-      priority: Priority.high,
-      styleInformation: style,
-      groupKey: 'chat_group',
-      icon: '@drawable/ic_stat_icon',
-    );
-
-    const iOSDetails = DarwinNotificationDetails();
-    final details =
-    NotificationDetails(android: androidDetails, iOS: iOSDetails);
-
-    final int notificationId = chatId.hashCode;
-
-    await _flutterLocalNotificationsPlugin.show(
-      notificationId,
-      chatName,
-      text,
-      details,
-    );
-
-    // Group summary (like WhatsApp multiple chats)
-    const summary = AndroidNotificationDetails(
-      'chat_channel',
-      'Chat Notifications',
-      styleInformation: InboxStyleInformation([]),
-      setAsGroupSummary: true,
-      groupKey: 'chat_group',
-    );
-
-    await _flutterLocalNotificationsPlugin.show(
-      0,
-      'You have new messages',
-      'Multiple conversations',
-      NotificationDetails(android: summary),
-    );
+    // ── Order update ───────────────────────────────────────────
+    if (type == 'order_update') {
+      if (isOrderScreenOpen) {
+        print("📵 Orders screen open hai — skip");
+        return;
+      }
+      _showNativeOrderUpdateNotification(
+        orderId: data['order_id'] ?? '',
+        title:   message.notification?.title ?? 'Order Update',
+        body:    message.notification?.body ?? '',
+      );
+      return;
+    }
   }
 
-  // 🔹 7. Handle Navigation on Tap
-  Future<void> handleMessage(BuildContext context, RemoteMessage message) async {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => BottomNavBar()),
-          (route) => false,
-    );
+  // ── 6. Native Message Notification call ───────────────────────
+  static Future<void> _showNativeMessageNotification({
+    required String chatId,
+    required String senderName,
+    required String message,
+  }) async {
+    try {
+      await _methodChannel.invokeMethod('showMessageNotification', {
+        'chatId':     chatId,
+        'senderName': senderName,
+        'message':    message,
+      });
+    } catch (e) {
+      print("❌ Message notification error: $e");
+    }
+  }
+
+  // ── 7. Native Order Update Notification call ──────────────────
+  static Future<void> _showNativeOrderUpdateNotification({
+    required String orderId,
+    required String title,
+    required String body,
+  }) async {
+    try {
+      await _methodChannel.invokeMethod('showOrderUpdateNotification', {
+        'orderId': orderId,
+        'title':   title,
+        'body':    body,
+      });
+    } catch (e) {
+      print("❌ Order notification error: $e");
+    }
+  }
+
+  // ── 8. Chat Screen khulne/bandh hone par call karo ───────────
+  static Future<void> onChatOpened(String chatId) async {
+    activeChatId = chatId;
+    try {
+      await _methodChannel.invokeMethod('cancelChatNotification', {
+        'chatId': chatId,
+      });
+    } catch (e) {
+      print("❌ Cancel notification error: $e");
+    }
+  }
+
+  static void onChatClosed() {
+    activeChatId = null;
+  }
+
+  // ── 9. Order screen ───────────────────────────────────────────
+  static void onOrderScreenOpened() => isOrderScreenOpen = true;
+  static void onOrderScreenClosed() => isOrderScreenOpen = false;
+
+  // ── 10. Notification tap navigation ──────────────────────────
+  static void _handleNotificationTap(Map<String, dynamic> data) {
+    print("🔔 Notification tapped: $data");
+    // TODO: apna NavigationService ya GlobalKey<NavigatorState> yahan use karo
+    // e.g. navigatorKey.currentState?.pushNamed('/chat', arguments: data['chat_id']);
   }
 }

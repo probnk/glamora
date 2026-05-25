@@ -52,21 +52,37 @@ class ChatProvider with ChangeNotifier {
   List<MessageModel> _messages = [];
 
   List<MessageModel> get messages => _messages;
+
   bool get isSellerOnline => _isSellerOnline;
+
   String get repliedTo => _repliedTo;
+
   String get repliedMessage => _repliedMessage;
+
   String get repliedType => _repliedType;
+
   DatabaseReference? get messagesRef => _messagesRef;
+
   bool get showScrollToBottomButton => _showScrollToBottomButton;
+
   bool get isLoading => _isLoading;
+
   bool get isFirstMessage => _isFirstMessage;
+
   String? get error => _error;
+
   bool get hasMessages => _hasMessages;
+
   bool get isOnline => _isOnline;
+
   List<String> get emojis => _emojis;
+
   List<String> get selectedMessageIds => _selectedMessageIds;
+
   bool get isSelectionMode => _selectedMessageIds.isNotEmpty;
+
   bool get canEdit => _canEdit;
+
   String get selectedText => _selectedText;
 
   @override
@@ -96,7 +112,8 @@ class ChatProvider with ChangeNotifier {
       }
       _setupPresenceTracking();
       final connectivityResult = await Connectivity().checkConnectivity();
-      _isOnline = connectivityResult.contains(ConnectivityResult.mobile) || connectivityResult.contains(ConnectivityResult.wifi);
+      _isOnline = connectivityResult.contains(ConnectivityResult.mobile) ||
+          connectivityResult.contains(ConnectivityResult.wifi);
       notifyListeners();
       final chatId = user.uid;
       _currentChatUserId = user.uid;
@@ -124,11 +141,14 @@ class ChatProvider with ChangeNotifier {
           for (var entry in data!.entries) {
             final map = Map<String, dynamic>.from(entry.value as Map);
             if (!map['isSender'] && map['status'] != 'seen') {
-              await _messagesRef!.child(entry.key as String).update({'status': 'seen'});
+              await _messagesRef!
+                  .child(entry.key as String)
+                  .update({'status': 'seen'});
             }
             _messages.add(MessageModel.fromMap(map, id: entry.key));
           }
-          _messages.sort((a, b) => DateTime.parse(a.time).compareTo(DateTime.parse(b.time)));
+          _messages.sort((a, b) =>
+              DateTime.parse(a.time).compareTo(DateTime.parse(b.time)));
         }
         await syncPendingMessages();
       }
@@ -136,23 +156,30 @@ class ChatProvider with ChangeNotifier {
         _messagesRef = _rtdb.child(chatDbUrl);
         _hasMessages = _messages.isNotEmpty;
       }
-      _childAddedSubscription = _messagesRef!.onChildAdded.listen((event) async {
+      _childAddedSubscription =
+          _messagesRef!.onChildAdded.listen((event) async {
         final map = Map<String, dynamic>.from(event.snapshot.value as Map);
         final msg = MessageModel.fromMap(map, id: event.snapshot.key);
         if (!msg.isSender && msg.status != 'seen') {
-          await _messagesRef!.child(event.snapshot.key!).update({'status': 'seen'});
+          await _messagesRef!
+              .child(event.snapshot.key!)
+              .update({'status': 'seen'});
         }
         await insertMessage(msg);
       });
-      _childChangedSubscription = _messagesRef!.onChildChanged.listen((event) async {
+      _childChangedSubscription =
+          _messagesRef!.onChildChanged.listen((event) async {
         final map = Map<String, dynamic>.from(event.snapshot.value as Map);
         final msg = MessageModel.fromMap(map, id: event.snapshot.key);
         if (!msg.isSender && msg.status != 'seen') {
-          await _messagesRef!.child(event.snapshot.key!).update({'status': 'seen'});
+          await _messagesRef!
+              .child(event.snapshot.key!)
+              .update({'status': 'seen'});
         }
         await insertMessage(msg);
       });
-      _childRemovedSubscription = _messagesRef!.onChildRemoved.listen((event) async {
+      _childRemovedSubscription =
+          _messagesRef!.onChildRemoved.listen((event) async {
         final id = event.snapshot.key;
         if (id != null) {
           await deleteMessage(id);
@@ -162,8 +189,10 @@ class ChatProvider with ChangeNotifier {
         }
       });
       _listenSellerStatus();
-      _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
-        _isOnline = result.contains(ConnectivityResult.mobile) || result.contains(ConnectivityResult.wifi);
+      _connectivitySubscription =
+          Connectivity().onConnectivityChanged.listen((result) {
+        _isOnline = result.contains(ConnectivityResult.mobile) ||
+            result.contains(ConnectivityResult.wifi);
         if (_isOnline && _error != null) {
           _error = null;
           initializeChat();
@@ -185,8 +214,9 @@ class ChatProvider with ChangeNotifier {
 
   Future<List<MessageModel>> getMessages() async => _messages;
 
-  Future<List<MessageModel>> getPendingMessages() async =>
-      _messages.where((msg) => msg.status == 'pending' || msg.status == 'failed').toList();
+  Future<List<MessageModel>> getPendingMessages() async => _messages
+      .where((msg) => msg.status == 'pending' || msg.status == 'failed')
+      .toList();
 
   Future<void> insertMessage(MessageModel msg) async {
     int index = _messages.indexWhere((m) => m.id == msg.id);
@@ -195,7 +225,8 @@ class ChatProvider with ChangeNotifier {
     } else {
       _messages.add(msg);
     }
-    _messages.sort((a, b) => DateTime.parse(a.time).compareTo(DateTime.parse(b.time)));
+    _messages.sort(
+        (a, b) => DateTime.parse(a.time).compareTo(DateTime.parse(b.time)));
     _hasMessages = _messages.isNotEmpty;
     notifyListeners();
   }
@@ -243,10 +274,12 @@ class ChatProvider with ChangeNotifier {
         File mediaFile = File(msg.message);
         File uploadFile = mediaFile;
         String extension = msg.messageType == 'image' ? '.jpg' : '.m4a';
-        String storageFolder = msg.messageType == 'image' ? 'chat_images' : 'chat_voices';
+        String storageFolder =
+            msg.messageType == 'image' ? 'chat_images' : 'chat_voices';
         String? compressedPath;
         if (msg.messageType == 'image') {
-          compressedPath = mediaFile.path.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
+          compressedPath =
+              mediaFile.path.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
           final compressedBytes = await FlutterImageCompress.compressWithFile(
             mediaFile.path,
             minWidth: 800,
@@ -259,34 +292,50 @@ class ChatProvider with ChangeNotifier {
         }
         final now = DateTime.now();
         final fileName = '${now.millisecondsSinceEpoch}$extension';
-        final storageRef = _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
-        final metadata = SettableMetadata(contentType: msg.messageType == 'image' ? 'image/jpeg' : 'audio/m4a');
+        final storageRef =
+            _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
+        final metadata = SettableMetadata(
+            contentType:
+                msg.messageType == 'image' ? 'image/jpeg' : 'audio/m4a');
         final uploadTask = storageRef.putFile(uploadFile, metadata);
         final taskSnapshot = await uploadTask;
         final url = await taskSnapshot.ref.getDownloadURL();
-        await _messagesRef!.child(msg.id!).update({'message': url, 'status': _isSellerOnline ? 'delivered' : 'sent'});
+        await _messagesRef!.child(msg.id!).update(
+            {'message': url, 'status': _isSellerOnline ? 'delivered' : 'sent'});
         await updateMessageUrl(msg.id!, url);
         if (msg.messageType == 'voice') {
           final bytes = await mediaFile.readAsBytes();
           final cacheManager = DefaultCacheManager();
           await cacheManager.putFile(url, bytes, fileExtension: 'm4a');
         }
-        if (msg.messageType == 'voice' && mediaFile.existsSync()) await mediaFile.delete();
-        if (msg.messageType == 'image' && compressedPath != null && File(compressedPath).existsSync()) {
+        if (msg.messageType == 'voice' && mediaFile.existsSync())
+          await mediaFile.delete();
+        if (msg.messageType == 'image' &&
+            compressedPath != null &&
+            File(compressedPath).existsSync()) {
           await File(compressedPath).delete();
         }
       } else {
-        await _messagesRef!.child(msg.id!).update({'status': _isSellerOnline ? 'delivered' : 'sent'});
-        await updateMessageStatus(msg.id!, _isSellerOnline ? 'delivered' : 'sent');
+        await _messagesRef!
+            .child(msg.id!)
+            .update({'status': _isSellerOnline ? 'delivered' : 'sent'});
+        await updateMessageStatus(
+            msg.id!, _isSellerOnline ? 'delivered' : 'sent');
       }
       String notifBody = msg.messageType == 'text'
           ? msg.message
-          : (msg.messageType == 'image' ? 'Sent an image' : 'Sent a voice message');
+          : (msg.messageType == 'image'
+              ? 'Sent an image'
+              : 'Sent a voice message');
       await SendNotificationService.sendNotificationUsingApi(
         title: _auth.currentUser!.displayName ?? '',
         body: notifBody,
         topic: 'seller_messages',
         data: {'screen': 'messaging_screen'},
+        icon: '@drawable/ic_stat_icon',
+        sound: 'message',
+        channel: 'chat_channel',
+        type: 'chat',
       );
     } catch (e) {
       await _messagesRef!.child(msg.id!).update({'status': 'failed'});
@@ -358,12 +407,14 @@ class ChatProvider with ChangeNotifier {
       if (mediaFile != null && mediaType != null) {
         File uploadFile = mediaFile;
         String extension = mediaType == 'image' ? '.jpg' : '.m4a';
-        String storageFolder = mediaType == 'image' ? 'chat_images' : 'chat_voices';
+        String storageFolder =
+            mediaType == 'image' ? 'chat_images' : 'chat_voices';
         String? compressedPath;
 
         if (mediaType == 'image') {
           // Image compression
-          compressedPath = mediaFile.path.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
+          compressedPath =
+              mediaFile.path.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
           final compressedBytes = await FlutterImageCompress.compressWithFile(
             mediaFile.path,
             minWidth: 800,
@@ -380,21 +431,19 @@ class ChatProvider with ChangeNotifier {
         }
 
         final fileName = '${now.millisecondsSinceEpoch}$extension';
-        final storageRef = _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
+        final storageRef =
+            _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
 
         final metadata = SettableMetadata(
-            contentType: mediaType == 'image' ? 'image/jpeg' : 'audio/m4a'
-        );
+            contentType: mediaType == 'image' ? 'image/jpeg' : 'audio/m4a');
 
         final uploadTask = storageRef.putFile(uploadFile, metadata);
         final taskSnapshot = await uploadTask;
         final url = await taskSnapshot.ref.getDownloadURL();
 
         // Update with actual Firebase URL
-        await _messagesRef!.child(messageKey).update({
-          'message': url,
-          'status': _isSellerOnline ? 'delivered' : 'sent'
-        });
+        await _messagesRef!.child(messageKey).update(
+            {'message': url, 'status': _isSellerOnline ? 'delivered' : 'sent'});
 
         await updateMessageUrl(messageKey, url);
 
@@ -409,11 +458,14 @@ class ChatProvider with ChangeNotifier {
         if (mediaType == 'voice' && mediaFile.existsSync()) {
           await mediaFile.delete();
         }
-        if (mediaType == 'image' && compressedPath != null && File(compressedPath).existsSync()) {
+        if (mediaType == 'image' &&
+            compressedPath != null &&
+            File(compressedPath).existsSync()) {
           await File(compressedPath).delete();
         }
       } else {
-        await updateMessageStatus(messageKey, _isSellerOnline ? 'delivered' : 'sent');
+        await updateMessageStatus(
+            messageKey, _isSellerOnline ? 'delivered' : 'sent');
       }
 
       // First message handling
@@ -431,13 +483,17 @@ class ChatProvider with ChangeNotifier {
       }
 
       // Send notification
-      String notifBody = text ?? (mediaType == 'image' ? 'Sent an image' : 'Sent a voice message');
+      String notifBody = text ??
+          (mediaType == 'image' ? 'Sent an image' : 'Sent a voice message');
       await SendNotificationService.sendNotificationUsingApi(
-        title: _auth.currentUser!.displayName ?? '',
-        body: notifBody,
-        topic: 'seller_messages',
-        data: {'screen': 'messaging_screen'},
-      );
+          title: _auth.currentUser!.displayName ?? '',
+          body: notifBody,
+          topic: 'seller_messages',
+          data: {'screen': 'messaging_screen'},
+          icon: '@drawable/ic_stat_message',
+          sound: 'message',
+          channel: 'chat_channel',
+          type: 'chat');
 
       setRepliedMessageEmpty();
       notifyListeners();
@@ -473,9 +529,11 @@ class ChatProvider with ChangeNotifier {
         File mediaFile = File(filePath);
         File uploadFile = mediaFile;
         String extension = mediaType == 'image' ? '.jpg' : '.m4a';
-        String storageFolder = mediaType == 'image' ? 'chat_images' : 'chat_voices';
+        String storageFolder =
+            mediaType == 'image' ? 'chat_images' : 'chat_voices';
         if (mediaType == 'image') {
-          compressedPath = filePath.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
+          compressedPath =
+              filePath.replaceAll(RegExp(r'\.[^.]+$'), '_compressed.jpg');
           final compressedBytes = await FlutterImageCompress.compressWithFile(
             filePath,
             minWidth: 800,
@@ -488,12 +546,15 @@ class ChatProvider with ChangeNotifier {
         }
         final now = DateTime.now();
         final fileName = '${now.millisecondsSinceEpoch}$extension';
-        final storageRef = _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
-        final metadata = SettableMetadata(contentType: mediaType == 'image' ? 'image/jpeg' : 'audio/m4a');
+        final storageRef =
+            _storage.ref('$storageFolder/${_auth.currentUser!.uid}/$fileName');
+        final metadata = SettableMetadata(
+            contentType: mediaType == 'image' ? 'image/jpeg' : 'audio/m4a');
         final uploadTask = storageRef.putFile(uploadFile, metadata);
         final taskSnapshot = await uploadTask;
         final url = await taskSnapshot.ref.getDownloadURL();
-        await _messagesRef!.child(messageKey).update({'message': url, 'status': _isSellerOnline ? 'delivered' : 'sent'});
+        await _messagesRef!.child(messageKey).update(
+            {'message': url, 'status': _isSellerOnline ? 'delivered' : 'sent'});
         await updateMessageUrl(messageKey, url);
         if (mediaType == 'voice') {
           final bytes = await mediaFile.readAsBytes();
@@ -501,8 +562,11 @@ class ChatProvider with ChangeNotifier {
           await cacheManager.putFile(url, bytes, fileExtension: 'm4a');
         }
         _failedUploads.remove(messageKey);
-        if (mediaType == 'voice' && mediaFile.existsSync()) await mediaFile.delete();
-        if (mediaType == 'image' && compressedPath != null && File(compressedPath).existsSync()) {
+        if (mediaType == 'voice' && mediaFile.existsSync())
+          await mediaFile.delete();
+        if (mediaType == 'image' &&
+            compressedPath != null &&
+            File(compressedPath).existsSync()) {
           await File(compressedPath).delete();
         }
       } catch (e) {
@@ -519,7 +583,8 @@ class ChatProvider with ChangeNotifier {
       resumeCallBack: () async => await _updateUserStatus(true),
       suspendingCallBack: () async => await _updateUserStatus(false),
     ));
-    _presenceSubscription = _rtdb.child('.info/connected').onValue.listen((event) async {
+    _presenceSubscription =
+        _rtdb.child('.info/connected').onValue.listen((event) async {
       if (event.snapshot.value == true) {
         await _updateUserStatus(true);
       } else {
@@ -535,7 +600,11 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
     if (!_isOnline) return;
     try {
-      await FirebaseDatabase.instance.ref().child('status').child(user.uid).update({
+      await FirebaseDatabase.instance
+          .ref()
+          .child('status')
+          .child(user.uid)
+          .update({
         'isOnline': online,
         'lastSeen': ServerValue.timestamp,
       });
@@ -555,7 +624,9 @@ class ChatProvider with ChangeNotifier {
             for (var entry in messagesData.entries) {
               final map = Map<String, dynamic>.from(entry.value as Map);
               if (map["isSender"] == true && map["status"] == "sent") {
-                await _messagesRef!.child(entry.key as String).update({"status": "delivered"});
+                await _messagesRef!
+                    .child(entry.key as String)
+                    .update({"status": "delivered"});
                 await updateMessageStatus(entry.key as String, "delivered");
               }
             }
@@ -581,15 +652,19 @@ class ChatProvider with ChangeNotifier {
   Future<void> removeReaction(String messageId) async {
     if (_messagesRef == null) return;
     await _messagesRef!.child(messageId).update({'reaction': ''});
-    final map = (await _messagesRef!.child(messageId).get()).value as Map<String, dynamic>?;
-    if (map != null) await insertMessage(MessageModel.fromMap(map, id: messageId));
+    final map = (await _messagesRef!.child(messageId).get()).value
+        as Map<String, dynamic>?;
+    if (map != null)
+      await insertMessage(MessageModel.fromMap(map, id: messageId));
   }
 
   Future<void> addReaction(String messageId, String reaction) async {
     if (_messagesRef == null) return;
     await _messagesRef!.child(messageId).update({'reaction': reaction});
-    final map = (await _messagesRef!.child(messageId).get()).value as Map<String, dynamic>?;
-    if (map != null) await insertMessage(MessageModel.fromMap(map, id: messageId));
+    final map = (await _messagesRef!.child(messageId).get()).value
+        as Map<String, dynamic>?;
+    if (map != null)
+      await insertMessage(MessageModel.fromMap(map, id: messageId));
   }
 
   void setRepliedMessage(MessageModel repliedMsg, String repliedTo) {
@@ -606,7 +681,8 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateScrollButtonVisibility(double currentPosition, double maxScrollExtent) {
+  void updateScrollButtonVisibility(
+      double currentPosition, double maxScrollExtent) {
     _showScrollToBottomButton = currentPosition < maxScrollExtent - 50;
     notifyListeners();
   }
@@ -620,7 +696,9 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> toggleMessageSelection(String id) async {
-    _selectedMessageIds.contains(id) ? _selectedMessageIds.remove(id) : _selectedMessageIds.add(id);
+    _selectedMessageIds.contains(id)
+        ? _selectedMessageIds.remove(id)
+        : _selectedMessageIds.add(id);
     await _updateCanEdit();
     notifyListeners();
   }
@@ -676,8 +754,11 @@ class InputProvider with ChangeNotifier {
   final aw.RecorderController recorderController = aw.RecorderController();
 
   File? get pendingImage => _pendingImage;
+
   String? get pendingVoicePath => _pendingVoicePath;
+
   bool get isRecording => _isRecording;
+
   Duration get recordingDuration => _recordingDuration;
 
   @override
@@ -736,16 +817,24 @@ class InputProvider with ChangeNotifier {
     if (await Permission.microphone.request().isGranted) {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration(
-        androidAudioAttributes: AndroidAudioAttributes(contentType: AndroidAudioContentType.speech, usage: AndroidAudioUsage.voiceCommunication),
+        androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.speech,
+            usage: AndroidAudioUsage.voiceCommunication),
         avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
         avAudioSessionMode: AVAudioSessionMode.voiceChat,
       ));
       final dir = await getTemporaryDirectory();
-      _recordingPath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _recordingPath =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       await recorderController.record(path: _recordingPath);
       _isRecording = true;
       _recordingDuration = Duration.zero;
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) => {_recordingDuration += const Duration(seconds: 1), notifyListeners()});
+      _recordingTimer = Timer.periodic(
+          const Duration(seconds: 1),
+          (timer) => {
+                _recordingDuration += const Duration(seconds: 1),
+                notifyListeners()
+              });
       notifyListeners();
     }
   }

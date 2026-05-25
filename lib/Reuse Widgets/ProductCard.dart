@@ -88,7 +88,7 @@ ProductCard({required BuildContext context,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                       color: isDarkMode
-                          ? Colors.transparent
+                          ? Color(0xFF454545)
                           : Colors.grey.shade200)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
