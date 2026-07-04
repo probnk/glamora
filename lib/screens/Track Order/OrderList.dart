@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:glamora/providers/DarkModeProvider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../Reuse Widgets/loadingShimmer.dart';
@@ -10,6 +11,9 @@ import '../../constants/reponsivness.dart';
 import '../../models/OrderList.dart';
 import '../../models/OrderProducts.dart';
 import '../../providers/OrdersProvider.dart';
+import '../../providers/returnProvider.dart';
+import '../Return Order/ReturnOrder.dart';
+import '../Return Order/ReturnStatusScreen.dart';
 import '../Review/Review.dart';
 import 'TrackOrder.dart';
 import '../../constants/colors.dart';
@@ -29,8 +33,44 @@ class _C {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-class OrdersListScreen extends StatelessWidget {
+class OrdersListScreen extends StatefulWidget {
   const OrdersListScreen({super.key});
+
+  @override
+  State<OrdersListScreen> createState() => _OrdersListScreenState();
+}
+
+class _OrdersListScreenState extends State<OrdersListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      context.read<ReturnProvider>().listenToMyReturns(uid);
+    }
+  }
+  void _navigateToReturn(BuildContext context, dynamic order) {
+    final provider = context.read<ReturnProvider>();
+    final existing = provider.existingReturnForOrder(order.orderId as String);
+
+    if (existing != null) {
+      // Return already submitted → show live status screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReturnStatusScreen(returnRequest: existing),
+        ),
+      );
+    } else {
+      // First time → show item selection / submission screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CustomerReturnScreen(order: order),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,12 +88,12 @@ class OrdersListScreen extends StatelessWidget {
 
           final userOrders = currentEmail != null
               ? provider.orders
-                  .where((o) => o.userDetails.email == currentEmail)
-                  .toList()
+              .where((o) => o.userDetails.email == currentEmail)
+              .toList()
               : <OrderList>[];
 
           final filteredOrders =
-              _filterOrders(userOrders, provider.searchQuery);
+          _filterOrders(userOrders, provider.searchQuery);
 
           if (userOrders.isEmpty) {
             return _EmptyState(
@@ -118,7 +158,7 @@ class OrdersListScreen extends StatelessWidget {
       child: Column(
         children: List.generate(
           3,
-          (_) => Padding(
+              (_) => Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: reusableShimmerContainer(
                 context: context, isDarkMode: isDark, height: 180),
@@ -155,6 +195,7 @@ class OrdersListScreen extends StatelessWidget {
     }).toList();
   }
 }
+
 
 // ─── Search Field ─────────────────────────────────────────────────────────────
 class _SearchField extends StatelessWidget {
@@ -211,6 +252,7 @@ class _OrderCard extends StatelessWidget {
   final bool isDark;
 
   const _OrderCard({required this.order, required this.isDark});
+
   Widget _buildImageStack(
       List<OrderProducts> cartItems, bool isDark, BuildContext context) {
     return Stack(
@@ -223,6 +265,24 @@ class _OrderCard extends StatelessWidget {
         );
       }),
     );
+  }
+
+  bool get _canReturn {
+    final ts = order.trackingStatus;
+    if (ts == null || ts.isEmpty) return false;
+    if (ts.last.trackingStatus != "Delivered") return false;
+    return true;
+    // try {
+    //   final deliveredDate = DateTime.parse(ts.last.timeStamp);
+    //   return DateTime.now().difference(deliveredDate).inDays <= 7;
+    // } catch (_) {
+    //   try {
+    //     final deliveredDate = DateFormat('yyyy-MM-dd HH:mm').parse(ts.last.timeStamp);
+    //     return DateTime.now().difference(deliveredDate).inDays <= 7;
+    //   } catch (_) {
+    //     return false;
+    //   }
+    // }
   }
 
   Widget _buildImageRow(
@@ -290,11 +350,11 @@ class _OrderCard extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                    loadingProgress.expectedTotalBytes!
+                        loadingProgress.expectedTotalBytes!
                     : null,
                 strokeWidth: 2,
                 valueColor:
-                AlwaysStoppedAnimation<Color>(isDark ? green : purple),
+                    AlwaysStoppedAnimation<Color>(isDark ? green : purple),
               ),
             );
           },
@@ -302,6 +362,7 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     final totalAmount = order.cartItems
@@ -341,13 +402,9 @@ class _OrderCard extends StatelessWidget {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    height: getResponsiveHeight(60),
-                    child: totalItems <= 3
-                        ? _buildImageStack(
-                        order.cartItems, isDark, context)
-                        : _buildImageRow(
-                        order.cartItems, isDark, context),
-                  ),
+                      height: getResponsiveHeight(60),
+                      child:
+                          _buildImageStack(order.cartItems, isDark, context)),
                 ),
                 // Order ID + Date
                 Expanded(
@@ -451,6 +508,7 @@ class _OrderCard extends StatelessWidget {
               order: order,
               isDark: isDark,
               isDelivered: isDelivered,
+              canReturn: _canReturn,
             ),
           ],
         ),
@@ -548,101 +606,174 @@ class _ActionButtons extends StatelessWidget {
   final OrderList order;
   final bool isDark;
   final bool isDelivered;
+  final bool canReturn;
 
   const _ActionButtons({
     required this.order,
     required this.isDark,
     required this.isDelivered,
+    required this.canReturn,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // ── Write Review (only after delivery) ────────────────────────
-        // BUG FIX: was using outer `index` (order index), now uses 0
-        // because review is for the first item; adjust if needed
-        if (isDelivered)
-          _ActionButton(
-            icon: Icons.rate_review_outlined,
-            label: 'Write Review',
-            color: _C.warning,
-            isDark: isDark,
-            onTap: () {
-              List<ReviewProduct> reviewProducts = [];
-
-              for (var item in order.cartItems) {
-                reviewProducts.add(
-                  ReviewProduct(
-                    docId: item.id.toString(),
-                    gender: item.gender.toString(),
-                    category: item.category.toString(),
-                    productName: item.title,
-                    imageUrl: item.photoUrl[0],
-                    price: (item.price * item.pieces).toDouble(),
-                    color: item.colorHex,
-                    pieces: item.pieces
-                  ),
-                );
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReviewScreen(
-                      products: reviewProducts,
-                    ),
-                  ),
-                );
-              }
-            },
+    if (order.cancelled == true) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _C.danger.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _C.danger.withOpacity(0.3)),
           ),
-
-        if (order.cancelled != true) ...[
-          if (isDelivered) const SizedBox(width: 8),
-
-          // ── Track Order ─────────────────────────────────────────────
-          if (order.trackingId != null && order.trackingId!.isNotEmpty)
-            _ActionButton(
-              icon: Icons.local_shipping_outlined,
-              label: 'Track Order',
-              color: _C.primary,
-              isDark: isDark,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => OrderTrackingScreen(order: order)),
-              ),
-            )
-
-          // ── Cancel Order ────────────────────────────────────────────
-          else
-            _ActionButton(
-              icon: Icons.cancel_outlined,
-              label: 'Cancel',
+          child: Text(
+            'Order Cancelled',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
               color: _C.danger,
-              isDark: isDark,
-              onTap: () => _confirmCancel(context),
-            ),
-        ] else
-          // ── Cancelled chip ──────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _C.danger.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.danger.withOpacity(0.3)),
-            ),
-            child: Text(
-              'Order Cancelled',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _C.danger,
-              ),
             ),
           ),
-      ],
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: PopupMenuButton<String>(
+        onSelected: (value) => _handleAction(context, value),
+        color: isDark ? _C.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        offset: const Offset(0, -8),
+        itemBuilder: (_) => _buildMenuItems(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: _C.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _C.primary.withOpacity(0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Actions',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _C.primary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 16, color: _C.primary),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  List<PopupMenuEntry<String>> _buildMenuItems() {
+    final items = <PopupMenuEntry<String>>[];
+
+    if (isDelivered)
+      items.add(_menuItem(
+          'review', Icons.rate_review_outlined, 'Write Review', _C.warning));
+
+    if (canReturn)
+      items.add(_menuItem('return', Icons.assignment_return_outlined,
+          'Return Order', _C.danger));
+
+    if (order.trackingId != null && order.trackingId!.isNotEmpty)
+      items.add(_menuItem(
+          'track', Icons.local_shipping_outlined, 'Track Order', _C.primary));
+    else
+      items
+          .add(_menuItem('cancel', Icons.cancel_outlined, 'Cancel', _C.danger));
+
+    return items;
+  }
+
+  PopupMenuItem<String> _menuItem(
+      String value, IconData icon, String label, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleAction(BuildContext context, String value) {
+    switch (value) {
+      case 'review':
+        List<ReviewProduct> reviewProducts = [];
+        for (var item in order.cartItems) {
+          reviewProducts.add(ReviewProduct(
+            docId: item.id.toString(),
+            gender: item.gender.toString(),
+            category: item.category.toString(),
+            productName: item.title,
+            imageUrl: item.photoUrl[0],
+            price: (item.price * item.pieces).toDouble(),
+            color: item.colorHex,
+            pieces: item.pieces,
+          ));
+        }
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => ReviewScreen(products: reviewProducts)));
+        break;
+
+      case 'return':
+        final provider = context.read<ReturnProvider>();
+        final existing =
+            provider.existingReturnForOrder(order.orderId as String);
+
+        if (existing != null) {
+// Return already submitted → show live status screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ReturnStatusScreen(returnRequest: existing),
+            ),
+          );
+        } else {
+// First time → show item selection / submission screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CustomerReturnScreen(order: order),
+            ),
+          );
+        }
+        break;
+
+      case 'track':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => OrderTrackingScreen(order: order)));
+        break;
+
+      case 'cancel':
+        _confirmCancel(context);
+        break;
+    }
   }
 
   Future<void> _confirmCancel(BuildContext context) async {
@@ -679,29 +810,25 @@ class _ActionButtons extends StatelessWidget {
             .doc(order.docId)
             .update({'cancelled': true});
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Order cancelled successfully',
-                  style: GoogleFonts.poppins()),
-              backgroundColor: _C.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Order cancelled successfully',
+                style: GoogleFonts.poppins()),
+            backgroundColor: _C.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
         }
       } catch (_) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-                  Text('Failed to cancel order', style: GoogleFonts.poppins()),
-              backgroundColor: _C.danger,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text('Failed to cancel order', style: GoogleFonts.poppins()),
+            backgroundColor: _C.danger,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
         }
       }
     }
@@ -751,112 +878,6 @@ class _ActionButton extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ─── Image Stack / Row ────────────────────────────────────────────────────────
-class _ImageStack extends StatelessWidget {
-  final List<OrderProducts> items;
-  final bool isDark;
-
-  const _ImageStack({required this.items, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: List.generate(items.length, (i) {
-        return Positioned(
-          left: i * 14.0,
-          bottom: i * 3.0,
-          child: _OrderImage(item: items[i], isDark: isDark),
-        );
-      }),
-    );
-  }
-}
-
-class _ImageRow extends StatelessWidget {
-  final List<OrderProducts> items;
-  final bool isDark;
-
-  const _ImageRow({required this.items, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(
-        math.min(3, items.length),
-        (i) => Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: _OrderImage(item: items[i], isDark: isDark),
-        ),
-      ),
-    );
-  }
-}
-
-class _OrderImage extends StatelessWidget {
-  final OrderProducts item;
-  final bool isDark;
-
-  const _OrderImage({required this.item, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    final url = item.photoUrl.isNotEmpty ? item.photoUrl[0] : null;
-
-    return Container(
-      width: 48,
-      height: 52,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isDark ? _C.darkBorder : Colors.white,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(9),
-        child: url != null && url.isNotEmpty
-            ? Image.network(
-                url,
-                fit: BoxFit.cover,
-                loadingBuilder: (_, child, progress) => progress == null
-                    ? child
-                    : Container(
-                        color: isDark ? _C.darkBorder : Colors.grey.shade200,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: _C.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                errorBuilder: (_, __, ___) => _placeholder(isDark),
-              )
-            : _placeholder(isDark),
-      ),
-    );
-  }
-
-  Widget _placeholder(bool isDark) {
-    return Container(
-      color: isDark ? _C.darkBorder : Colors.grey.shade200,
-      child: Icon(Icons.image_not_supported_outlined,
-          size: 18, color: isDark ? Colors.white38 : Colors.grey),
     );
   }
 }

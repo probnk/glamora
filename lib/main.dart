@@ -22,6 +22,7 @@ import 'package:glamora/providers/UserProvider.dart';
 import 'package:glamora/providers/WishListProvider.dart';
 import 'package:glamora/providers/aiChatBotProvider.dart';
 import 'package:glamora/providers/onBoardingProvider.dart';
+import 'package:glamora/providers/returnProvider.dart';
 import 'package:glamora/screens/No%20Internet%20Screen/connectivity_wrapper.dart';
 import 'package:glamora/screens/Product%20Details/AR%20Try%20On/CameraDetection.dart';
 import 'package:provider/provider.dart';
@@ -91,6 +92,8 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(create: (context) => TrackingProvider()),
           ChangeNotifierProvider(create: (context) => OrdersProvider()),
           // ChangeNotifierProvider(create: (context) => ARTryOnProvider()),
+          ChangeNotifierProvider(create: (context) => ReturnProvider()),
+
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
