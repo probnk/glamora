@@ -1,7 +1,9 @@
 # 👗 Glamora
 
 <div align="center">
-
+<p align="center">
+  <img src="assets/images/glamora.png" alt="Vision Cart" width="100px">
+</p>
 ### AI-Powered Fashion Shopping Experience with Augmented Reality
 
 Experience the future of fashion shopping through **Artificial Intelligence**, **Augmented Reality**, and a modern mobile-first shopping experience.
